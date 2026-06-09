@@ -1,0 +1,191 @@
+.mx-scroll {
+  position: relative;
+  overflow: auto;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--mx-border, #8883);
+  background: var(--mx-bg, #fff);
+  font-size: 12px;
+}
+
+/* --- Шапка (sticky top) --- */
+.mx-header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+.mx-corner {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  align-items: flex-end;
+  padding: 6px 8px;
+  font-weight: 600;
+  background: var(--mx-head-bg, #eef);
+  border-right: 1px solid var(--mx-border, #8883);
+  border-bottom: 1px solid var(--mx-border, #8883);
+}
+
+.mx-th {
+  position: absolute;
+  top: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 6px 4px;
+  background: var(--mx-head-bg, #eef);
+  border-right: 1px solid var(--mx-border, #8883);
+  border-bottom: 1px solid var(--mx-border, #8883);
+  overflow: hidden;
+}
+
+/* вертикальный текст заголовка, чтобы вмещать длинные имена шаблонов */
+.mx-th-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-height: 100%;
+}
+
+.mx-th.hot {
+  background: var(--mx-hot, #dde6ff);
+}
+.mx-th.dim,
+.mx-row.dim {
+  opacity: 0.28;
+}
+
+/* --- Тело --- */
+.mx-body {
+  position: relative;
+}
+
+.mx-row {
+  position: absolute;
+  left: 0;
+}
+.mx-row.hot .mx-cell,
+.mx-row.hot .mx-label {
+  background: var(--mx-hot, #dde6ff);
+}
+
+.mx-label {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: stretch;
+  padding-left: 4px;
+  background: var(--mx-label-bg, #f7f7fa);
+  border-right: 1px solid var(--mx-border, #8883);
+  border-bottom: 1px solid var(--mx-border, #8881);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.mx-label.clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Линии уровней вложенности */
+.mx-guides {
+  flex: none;
+  display: flex;
+  height: 100%;
+}
+.mx-guide {
+  width: 16px;
+  height: 100%;
+  border-left: 1px solid var(--mx-guide, #aaa6);
+}
+
+/* Заметный указатель сворачивания: квадрат с + / − */
+.mx-caret {
+  flex: none;
+  align-self: center;
+  width: 15px;
+  height: 15px;
+  margin: 0 5px 0 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid var(--mx-caret-border, #8896);
+  border-radius: 3px;
+  color: var(--mx-caret-fg, #2563c0);
+  background: var(--mx-caret-bg, #fff6);
+}
+.mx-caret.leaf {
+  border: none;
+  background: none;
+}
+.mx-name {
+  align-self: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mx-cell {
+  position: absolute;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  border-right: 1px solid var(--mx-border, #8881);
+  border-bottom: 1px solid var(--mx-border, #8881);
+  overflow: hidden;
+}
+.mx-cell.filled {
+  background: var(--mx-filled, #e8f5e9);
+}
+.mx-cell.hot {
+  background: var(--mx-hot, #dde6ff);
+}
+.mx-cell-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Признаки охраны/antipass — мелкие точки в правом верхнем углу, ширину не занимают */
+.mx-badges {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: inline-flex;
+  gap: 2px;
+}
+.mx-badge {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+.mx-badge.g {
+  background: #c62828;
+}
+.mx-badge.a {
+  background: #1565c0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mx-scroll {
+    --mx-bg: #1e1e1e;
+    --mx-border: #fff2;
+    --mx-head-bg: #2a2d3a;
+    --mx-label-bg: #26262b;
+    --mx-filled: #1b3a1f;
+    --mx-hot: #2d3b66;
+    --mx-guide: #ffffff33;
+    --mx-caret-border: #ffffff44;
+    --mx-caret-bg: #ffffff14;
+    --mx-caret-fg: #7aa2f7;
+  }
+}

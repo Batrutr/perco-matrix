@@ -1,0 +1,34 @@
+# systemd-юнит для запуска без Docker.
+# 1. Соберите проект:        npm ci && npm run build
+# 2. Разместите репозиторий:  /opt/perco-matrix
+# 3. Создайте /opt/perco-matrix/.env (см. .env.example)
+# 4. Скопируйте юнит:         cp deploy/perco-matrix.service /etc/systemd/system/
+# 5. Запустите:               systemctl daemon-reload && systemctl enable --now perco-matrix
+#
+# По умолчанию запускается под пользователем "perco" — создайте его или измените User=.
+
+[Unit]
+Description=PERCo Access Matrix
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=perco
+Group=perco
+WorkingDirectory=/opt/perco-matrix
+EnvironmentFile=/opt/perco-matrix/.env
+ExecStart=/usr/bin/node server/dist/index.js
+Restart=on-failure
+RestartSec=5
+
+# Усиление безопасности процесса
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# Разрешаем запись только в каталог с БД SQLite
+ReadWritePaths=/opt/perco-matrix/data
+
+[Install]
+WantedBy=multi-user.target

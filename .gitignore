@@ -1,0 +1,19 @@
+node_modules/
+dist/
+*.log
+
+# Локальная конфигурация и секреты
+.env
+.env.local
+
+# База данных SQLite
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+data/
+
+# Редакторы / ОС
+.DS_Store
+.vscode/
+.idea/
