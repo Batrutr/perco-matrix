@@ -20,11 +20,12 @@ CREATE TABLE IF NOT EXISTS rooms (
 );
 
 CREATE TABLE IF NOT EXISTS templates (
-  id         INTEGER PRIMARY KEY,
-  name       TEXT,
-  comment    TEXT,
-  is_removed INTEGER,
-  fetched_at TEXT
+  id             INTEGER PRIMARY KEY,
+  name           TEXT,
+  comment        TEXT,
+  is_removed     INTEGER,
+  fetched_at     TEXT,
+  employee_count INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS template_access (
@@ -56,7 +57,18 @@ export function openDb(dbPath: string): DB {
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
   db.exec(SCHEMA);
+  migrate(db);
   return db;
+}
+
+/** Идемпотентные миграции для уже существующих БД. */
+function migrate(db: DB): void {
+  // employee_count добавлен позже — у старых БД колонки нет.
+  try {
+    db.exec("ALTER TABLE templates ADD COLUMN employee_count INTEGER");
+  } catch {
+    // колонка уже есть — игнорируем
+  }
 }
 
 export function getMeta(db: DB, key: string): string | null {

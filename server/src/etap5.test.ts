@@ -10,6 +10,7 @@ import type { PercoClient } from "./perco/client.js";
 function cfg(appPassword: string): AppConfig {
   return {
     perco: { host: "https://x", login: "a", password: "b", concurrency: 4, tlsRejectUnauthorized: true },
+    percoDb: null,
     server: { host: "127.0.0.1", port: 0 },
     dbPath: ":memory:",
     appPassword,

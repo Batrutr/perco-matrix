@@ -165,14 +165,36 @@ export function getRooms(db: DB): Room[] {
 
 export function getTemplates(db: DB): Template[] {
   const rows = db
-    .prepare(`SELECT id, name, comment, is_removed FROM templates ORDER BY name`)
-    .all() as Array<{ id: number; name: string; comment: string | null; is_removed: number }>;
+    .prepare(
+      `SELECT t.id, t.name, t.comment, t.is_removed, t.employee_count,
+              (SELECT COUNT(*) FROM template_access a WHERE a.template_id = t.id) AS room_count
+       FROM templates t ORDER BY t.name`,
+    )
+    .all() as Array<{
+    id: number;
+    name: string;
+    comment: string | null;
+    is_removed: number;
+    employee_count: number | null;
+    room_count: number;
+  }>;
   return rows.map((t) => ({
     id: t.id,
     name: t.name,
     comment: t.comment,
     isRemoved: t.is_removed === 1,
+    roomCount: t.room_count,
+    employeeCount: t.employee_count,
   }));
+}
+
+/** Записать число сотрудников на шаблон (из БД PERCo). Шаблоны не из карты — обнуляются. */
+export function setEmployeeCounts(db: DB, counts: Map<number, number>): void {
+  const update = db.prepare("UPDATE templates SET employee_count = ? WHERE id = ?");
+  inTransaction(db, () => {
+    db.exec("UPDATE templates SET employee_count = NULL");
+    for (const [id, count] of counts) update.run(count, id);
+  });
 }
 
 export function getCells(db: DB): MatrixCell[] {

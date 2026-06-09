@@ -19,6 +19,10 @@ export interface Template {
   name: string;
   comment: string | null;
   isRemoved: boolean;
+  /** К скольким помещениям (зонам) применён шаблон — из кэша template_access */
+  roomCount: number;
+  /** К скольким сотрудникам применён; null — счётчик недоступен (БД PERCo не настроена) */
+  employeeCount: number | null;
 }
 
 /** Содержимое ячейки матрицы: права шаблона в помещение */

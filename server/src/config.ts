@@ -28,6 +28,14 @@ function deriveCookieSecret(appPassword: string): string {
   return randomBytes(32).toString("hex");
 }
 
+export interface PercoDbConfig {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+}
+
 export interface AppConfig {
   perco: {
     host: string;
@@ -37,6 +45,8 @@ export interface AppConfig {
     /** Проверять TLS-сертификат PERCo. false — только для self-signed в доверенной сети. */
     tlsRejectUnauthorized: boolean;
   };
+  /** Прямое подключение к БД PERCo (MariaDB) для счётчика сотрудников; null = выключено */
+  percoDb: PercoDbConfig | null;
   server: {
     host: string;
     port: number;
@@ -60,6 +70,15 @@ export function loadConfig(): AppConfig {
       concurrency: Number(process.env.PERCO_CONCURRENCY ?? "8"),
       tlsRejectUnauthorized: bool(process.env.PERCO_TLS_REJECT_UNAUTHORIZED, true),
     },
+    percoDb: process.env.PERCO_DB_HOST
+      ? {
+          host: process.env.PERCO_DB_HOST,
+          port: Number(process.env.PERCO_DB_PORT ?? "3306"),
+          database: required("PERCO_DB_NAME"),
+          user: required("PERCO_DB_USER"),
+          password: process.env.PERCO_DB_PASSWORD ?? "",
+        }
+      : null,
     server: {
       host: process.env.HOST ?? "0.0.0.0",
       port: Number(process.env.PORT ?? "3000"),

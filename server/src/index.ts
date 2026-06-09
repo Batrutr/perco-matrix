@@ -2,6 +2,7 @@
 import { loadConfig } from "./config.js";
 import { openDb } from "./db.js";
 import { PercoClient } from "./perco/client.js";
+import { PercoDb } from "./perco/percoDb.js";
 import { RefreshState } from "./sync.js";
 import { buildApp } from "./app.js";
 
@@ -15,7 +16,16 @@ async function main() {
     password: config.perco.password,
     tlsRejectUnauthorized: config.perco.tlsRejectUnauthorized,
   });
-  const refresh = new RefreshState(db, client, config.perco.concurrency);
+
+  // Опциональное подключение к БД PERCo для счётчика сотрудников.
+  const percoDb = config.percoDb ? new PercoDb(config.percoDb) : null;
+
+  const refresh = new RefreshState(
+    db,
+    client,
+    config.perco.concurrency,
+    percoDb ? () => percoDb.getEmployeeCounts() : undefined,
+  );
 
   const app = await buildApp({ config, db, refresh });
   await app.listen({ host: config.server.host, port: config.server.port });

@@ -4,7 +4,7 @@
 import { loadConfig } from "./config.js";
 import { openDb, setMeta } from "./db.js";
 import { roomsTreeSchema, templateDetailSchema, templateListSchema } from "./perco/schemas.js";
-import { replaceRooms, replaceTemplates, saveTemplateAccess } from "./repo.js";
+import { replaceRooms, replaceTemplates, saveTemplateAccess, setEmployeeCounts } from "./repo.js";
 import type { RoomNode } from "./perco/schemas.js";
 
 const BUILDINGS = 5;
@@ -93,6 +93,9 @@ function main(): void {
       });
     saveTemplateAccess(db, templateDetailSchema.parse({ id: t.id, name: t.name, comment: t.comment, access }));
   }
+
+  // Демо-счётчики сотрудников (как будто из БД PERCo)
+  setEmployeeCounts(db, new Map(list.map((t) => [t.id, Math.floor(Math.random() * 120)])));
 
   setMeta(db, "last_update_templates", new Date().toISOString());
 

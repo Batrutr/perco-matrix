@@ -4,8 +4,11 @@ import type { RefreshKind, RefreshStatus } from "@perco/shared";
 import type { DB } from "./db.js";
 import { setMeta } from "./db.js";
 import type { PercoClient } from "./perco/client.js";
-import { replaceRooms, replaceTemplates, saveTemplateAccess } from "./repo.js";
+import { replaceRooms, replaceTemplates, saveTemplateAccess, setEmployeeCounts } from "./repo.js";
 import { runWithConcurrency } from "./util/pool.js";
+
+/** Поставщик числа сотрудников на шаблон (из БД PERCo); опционален. */
+export type EmployeeCountsProvider = () => Promise<Map<number, number>>;
 
 export class RefreshState {
   private status: RefreshStatus = {
@@ -20,6 +23,8 @@ export class RefreshState {
     private readonly db: DB,
     private readonly client: PercoClient,
     private readonly concurrency: number,
+    /** Опциональный поставщик числа сотрудников (БД PERCo) */
+    private readonly fetchEmployeeCounts?: EmployeeCountsProvider,
   ) {}
 
   getStatus(): RefreshStatus {
@@ -77,6 +82,16 @@ export class RefreshState {
         },
       },
     );
+
+    // Число сотрудников на шаблон — из БД PERCo (опционально). Сбой здесь
+    // не должен валить всё обновление: счётчики просто останутся пустыми.
+    if (this.fetchEmployeeCounts) {
+      try {
+        setEmployeeCounts(this.db, await this.fetchEmployeeCounts());
+      } catch (err) {
+        console.error("Не удалось получить число сотрудников из БД PERCo:", err);
+      }
+    }
 
     setMeta(this.db, "last_update_templates", new Date().toISOString());
   }

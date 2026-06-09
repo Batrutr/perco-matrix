@@ -17,3 +17,6 @@ data/
 .DS_Store
 .vscode/
 .idea/
+
+# Claude Code — локальные настройки
+.claude/

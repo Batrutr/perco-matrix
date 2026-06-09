@@ -73,7 +73,11 @@ export function MatrixGrid({
       {/* Шапка: названия шаблонов (sticky top), угол (sticky top+left) */}
       <div className="mx-header" style={{ width: contentW, height: HEADER_H }}>
         <div className="mx-corner" style={{ width: LABEL_W, height: HEADER_H }}>
-          Помещения \ Шаблоны
+          <span className="mx-corner-title">Помещения \ Шаблоны</span>
+          <span className="mx-corner-legend">
+            <span className="c-rooms">помещений</span>
+            <span className="c-emp">сотрудников</span>
+          </span>
         </div>
         {colItems.map((col) => {
           const t = templates[col.index]!;
@@ -87,6 +91,14 @@ export function MatrixGrid({
               title={t.comment ? `${t.name} — ${t.comment}` : t.name}
             >
               <span className="mx-th-text">{t.name}</span>
+              <span className="mx-th-counts">
+                <span className="c-rooms" title={`Помещений: ${t.roomCount}`}>
+                  {t.roomCount}
+                </span>
+                <span className="c-emp" title="Сотрудников">
+                  {t.employeeCount ?? "–"}
+                </span>
+              </span>
             </div>
           );
         })}
