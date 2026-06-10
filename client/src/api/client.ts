@@ -1,5 +1,5 @@
 // Обращения к внутреннему API сервера.
-import type { MatrixResponse, RefreshKind, RefreshStatus } from "@perco/shared";
+import type { AppClientConfig, MatrixResponse, RefreshKind, RefreshStatus } from "@perco/shared";
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -9,6 +9,10 @@ async function getJson<T>(url: string): Promise<T> {
 
 export function fetchMatrix(): Promise<MatrixResponse> {
   return getJson<MatrixResponse>("/api/state/matrix");
+}
+
+export function fetchConfig(): Promise<AppClientConfig> {
+  return getJson<AppClientConfig>("/api/config");
 }
 
 export function fetchRefreshStatus(): Promise<RefreshStatus> {

@@ -58,6 +58,8 @@ export interface AppConfig {
   cookieSecret: string;
   /** Путь к собранной статике клиента; пусто = относительный путь рядом с сервером */
   staticDir: string;
+  /** «Важные» шаблоны для закрепления одной кнопкой — по id или по имени */
+  importantTemplates: string[];
 }
 
 export function loadConfig(): AppConfig {
@@ -87,5 +89,9 @@ export function loadConfig(): AppConfig {
     appPassword,
     cookieSecret: deriveCookieSecret(appPassword),
     staticDir: process.env.STATIC_DIR ?? "",
+    importantTemplates: (process.env.PINNED_TEMPLATES ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0),
   };
 }

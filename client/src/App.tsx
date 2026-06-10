@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MatrixResponse, Template } from "@perco/shared";
-import { fetchMatrix } from "./api/client.js";
+import { fetchConfig, fetchMatrix } from "./api/client.js";
 import { useRefresh } from "./hooks/useRefresh.js";
 import { annotateRooms, buildCellIndex, computeVisibleRooms } from "./matrix/model.js";
 import {
@@ -13,6 +13,7 @@ import {
 import {
   intersect,
   nameMatches,
+  resolveTemplateIds,
   roomIdsMatchingName,
   sortTemplates,
   type SortDir,
@@ -55,6 +56,7 @@ export function App() {
     new Map(),
   );
   const [pinnedTemplateIds, setPinnedTemplateIds] = useState<number[]>([]);
+  const [importantTemplates, setImportantTemplates] = useState<string[]>([]);
   const [menu, setMenu] = useState<Menu | null>(null);
 
   const load = useCallback(() => {
@@ -67,6 +69,13 @@ export function App() {
   }, []);
 
   useEffect(load, [load]);
+
+  // Конфиг «важных» шаблонов (грузим один раз; при сбое — пустой список)
+  useEffect(() => {
+    fetchConfig()
+      .then((c) => setImportantTemplates(c.importantTemplates))
+      .catch(() => setImportantTemplates([]));
+  }, []);
 
   const refresh = useRefresh(load);
 
@@ -206,6 +215,16 @@ export function App() {
     setPinnedTemplateIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }, []);
 
+  // «Важные» шаблоны из конфига → их id (по id или имени) среди загруженных шаблонов
+  const importantIds = useMemo(
+    () => resolveTemplateIds(templates, importantTemplates),
+    [templates, importantTemplates],
+  );
+  const pinImportant = useCallback(() => {
+    setPinnedTemplateIds((prev) => [...prev, ...importantIds.filter((id) => !prev.includes(id))]);
+  }, [importantIds]);
+  const unpinAll = useCallback(() => setPinnedTemplateIds([]), []);
+
   const menuItems: MenuItem[] = useMemo(() => {
     if (!menu) return [];
     if (menu.kind === "template") {
@@ -273,6 +292,21 @@ export function App() {
             setSortDir(dir);
           }}
         />
+        <div className="pin-controls">
+          {importantIds.length > 0 && (
+            <button
+              onClick={pinImportant}
+              title="Закрепить слева все важные шаблоны из конфига"
+            >
+              📌 Закрепить важные ({importantIds.length})
+            </button>
+          )}
+          {pinnedTemplateIds.length > 0 && (
+            <button onClick={unpinAll} title="Открепить все закреплённые шаблоны">
+              Открепить все ({pinnedTemplateIds.length})
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="app-toolbar">

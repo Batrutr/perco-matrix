@@ -1,7 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Room, Template } from "@perco/shared";
-import { intersect, nameMatches, roomIdsMatchingName, sortTemplates } from "./search.js";
+import {
+  intersect,
+  nameMatches,
+  resolveTemplateIds,
+  roomIdsMatchingName,
+  sortTemplates,
+} from "./search.js";
 
 function tpl(p: Partial<Template> & { id: number; name: string }): Template {
   return { comment: null, isRemoved: false, roomCount: 0, employeeCount: null, ...p };
@@ -50,6 +56,18 @@ test("sortTemplates: по сотрудникам, null всегда в конц�
     sortTemplates(list, "employees", "asc").map((t) => t.id),
     [1, 3, 2],
   );
+});
+
+test("resolveTemplateIds: по id и по имени, без дублей, в порядке конфига", () => {
+  const list = [
+    tpl({ id: 39094478, name: "310" }),
+    tpl({ id: 100, name: "Проходная" }),
+    tpl({ id: 200, name: "Проходная" }), // дубль имени
+  ];
+  // "100" — id; "310" — имя; "Проходная" — имя (id 100 уже учтён, добавится 200)
+  assert.deepEqual(resolveTemplateIds(list, ["100", "310", "Проходная"]), [100, 39094478, 200]);
+  // несуществующие и пустые игнорируются
+  assert.deepEqual(resolveTemplateIds(list, ["нет такого", "  "]), []);
 });
 
 test("roomIdsMatchingName + intersect", () => {

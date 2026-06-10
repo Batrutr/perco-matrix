@@ -16,6 +16,7 @@ function cfg(appPassword: string): AppConfig {
     appPassword,
     cookieSecret: "test-secret-which-is-long-enough-000000",
     staticDir: "",
+    importantTemplates: [],
   };
 }
 
