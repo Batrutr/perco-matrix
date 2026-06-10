@@ -138,6 +138,50 @@
   font-size: 12px;
   color: #888;
 }
+.show-hidden {
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+/* --- Контекстное меню --- */
+.ctx-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 240px;
+  padding: 4px;
+  background: var(--ctx-bg, #fff);
+  border: 1px solid #8886;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px #0003;
+}
+.ctx-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  font-size: 13px;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: inherit;
+}
+.ctx-item:hover {
+  background: var(--ctx-hover, #e8eefc);
+}
+.ctx-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: #8884;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ctx-menu {
+    --ctx-bg: #26262b;
+    --ctx-hover: #2d3b66;
+  }
+}
 
 .app-grid {
   flex: 1;
