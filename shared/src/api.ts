@@ -68,3 +68,9 @@ export interface MatrixResponse {
   cells: MatrixCell[];
   meta: StateMeta;
 }
+
+/** Клиентская конфигурация (из серверного конфига) */
+export interface AppClientConfig {
+  /** «Важные» шаблоны для закрепления одной кнопкой — по id или имени (сырые записи) */
+  importantTemplates: string[];
+}

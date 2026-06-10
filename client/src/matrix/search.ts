@@ -55,3 +55,23 @@ export function intersect(a: Set<number>, b: Set<number>): Set<number> {
   for (const x of a) if (b.has(x)) out.add(x);
   return out;
 }
+
+/**
+ * Сопоставить «важные» записи конфига (id или имя) с id существующих шаблонов.
+ * Возвращает id в порядке записей конфига, без дублей.
+ */
+export function resolveTemplateIds(templates: Template[], entries: string[]): number[] {
+  const ids: number[] = [];
+  const seen = new Set<number>();
+  for (const raw of entries) {
+    const e = raw.trim();
+    if (!e) continue;
+    for (const t of templates) {
+      if ((String(t.id) === e || t.name.trim() === e) && !seen.has(t.id)) {
+        seen.add(t.id);
+        ids.push(t.id);
+      }
+    }
+  }
+  return ids;
+}

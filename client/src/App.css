@@ -87,6 +87,15 @@
 .search-field input[type="search"] {
   width: 160px;
 }
+.pin-controls {
+  display: inline-flex;
+  gap: 8px;
+}
+.pin-controls button {
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
 
 /* --- Тулбар фильтра --- */
 .app-toolbar {

@@ -1,6 +1,6 @@
 // Внутренний API: чтение кэша (/api/state/*) и запуск обновления (/api/refresh/*).
 import type { FastifyInstance } from "fastify";
-import type { MatrixResponse, RefreshKind } from "@perco/shared";
+import type { AppClientConfig, MatrixResponse, RefreshKind } from "@perco/shared";
 import type { DB } from "./db.js";
 import type { RefreshState } from "./sync.js";
 import { getRooms, getTemplates, getCells, getStateMeta } from "./repo.js";
@@ -14,10 +14,17 @@ function isRefreshKind(value: string): value is RefreshKind {
 export interface ApiDeps {
   db: DB;
   refresh: RefreshState;
+  /** «Важные» шаблоны из конфига (сырые записи: id или имя) */
+  importantTemplates: string[];
 }
 
 export async function registerApiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<void> {
   const { db, refresh } = deps;
+
+  // Клиентская конфигурация (из серверного конфига)
+  app.get("/api/config", async (): Promise<AppClientConfig> => ({
+    importantTemplates: deps.importantTemplates,
+  }));
 
   // --- Чтение кэша ---
 
