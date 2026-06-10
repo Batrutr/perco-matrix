@@ -5,7 +5,7 @@ import type { DB } from "./db.js";
 import type { RefreshState } from "./sync.js";
 import { getRooms, getTemplates, getCells, getStateMeta } from "./repo.js";
 
-const REFRESH_KINDS: readonly RefreshKind[] = ["rooms", "templates", "all"];
+const REFRESH_KINDS: readonly RefreshKind[] = ["rooms", "templates", "all", "employees"];
 
 function isRefreshKind(value: string): value is RefreshKind {
   return (REFRESH_KINDS as readonly string[]).includes(value);

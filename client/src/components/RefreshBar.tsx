@@ -5,6 +5,7 @@ const KIND_LABEL: Record<RefreshKind, string> = {
   rooms: "помещения",
   templates: "шаблоны",
   all: "всё",
+  employees: "сотрудники",
 };
 
 function fmtTime(iso: string | null): string {
@@ -31,6 +32,9 @@ export function RefreshBar({ meta, status, busy, error, onRefresh }: Props) {
         <button onClick={() => onRefresh("templates")} disabled={busy}>
           Обновить шаблоны
         </button>
+        <button onClick={() => onRefresh("employees")} disabled={busy} title="Быстро: только число сотрудников из БД PERCo">
+          Обновить сотрудников
+        </button>
         <button onClick={() => onRefresh("all")} disabled={busy} className="primary">
           Обновить всё
         </button>
@@ -47,7 +51,8 @@ export function RefreshBar({ meta, status, busy, error, onRefresh }: Props) {
         ) : (
           <span className="times">
             помещения: {fmtTime(meta?.lastUpdateRooms ?? null)} · шаблоны:{" "}
-            {fmtTime(meta?.lastUpdateTemplates ?? null)}
+            {fmtTime(meta?.lastUpdateTemplates ?? null)} · сотрудники:{" "}
+            {fmtTime(meta?.lastUpdateEmployees ?? null)}
           </span>
         )}
       </div>

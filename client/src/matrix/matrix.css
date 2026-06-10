@@ -23,8 +23,9 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  align-items: flex-end;
-  padding: 6px 8px;
+  align-items: stretch;
+  /* без нижнего padding — легенда прижата к низу, как ячейки-счётчики в столбцах */
+  padding: 6px 8px 0;
   font-weight: 600;
   background: var(--mx-head-bg, #eef);
   border-right: 1px solid var(--mx-border, #8883);
@@ -34,12 +35,8 @@
   align-self: flex-start;
 }
 .mx-corner-legend {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
   font-weight: 600;
   font-size: 10px;
-  line-height: 13px;
 }
 
 .mx-th {
@@ -65,17 +62,29 @@
   text-overflow: ellipsis;
   overflow: hidden;
   align-self: center;
+  /* зазор до черты счётчиков. Текст повёрнут на 180°, поэтому padding ушёл бы
+     в визуальный верх — отступ задаём через margin (он не зависит от transform). */
+  margin-bottom: 8px;
 }
 
-/* Два счётчика под именем: помещений / сотрудников */
+/* Два счётчика под именем — каждое значение в своей ячейке-строке (на всю ширину
+   столбца, с разделяющими рамками), крупнее для читаемости. */
 .mx-th-counts {
   flex: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  font-size: 10px;
-  line-height: 13px;
+  width: 100%;
+  /* компенсируем боковой padding .mx-th, чтобы ячейки были во всю ширину столбца */
+  margin: 0 -2px -4px;
+}
+.mx-th-counts > span {
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-size: 11px;
+  line-height: 17px;
   font-weight: 700;
+  border-top: 1px solid var(--mx-border, #8883);
 }
 
 /* Цветовая привязка счётчиков к легенде в углу */
@@ -84,6 +93,15 @@
 }
 .c-emp {
   color: var(--mx-c-emp, #1565c0);
+}
+
+/* Легенда в углу — две строки во всю ширину, выровнены с ячейками-счётчиками
+   (та же высота строки 17px + верхняя граница → черты совпадают по высоте). */
+.mx-corner-legend > span {
+  display: block;
+  text-align: right;
+  line-height: 17px;
+  border-top: 1px solid var(--mx-border, #8883);
 }
 
 .mx-th.hot {

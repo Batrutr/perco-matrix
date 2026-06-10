@@ -7,9 +7,9 @@ import { cellKey, cellText, describeCell, type RoomRow } from "./model.js";
 import "./matrix.css";
 
 export const ROW_H = 28;
-export const HEADER_H = 132;
+export const HEADER_H = 144;
 export const LABEL_W = 300;
-export const COL_W = 40;
+export const COL_W = 50;
 
 export interface HoverInfo {
   template: Template;

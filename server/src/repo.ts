@@ -232,6 +232,7 @@ export function getStateMeta(db: DB): StateMeta {
   return {
     lastUpdateRooms: getMeta(db, "last_update_rooms"),
     lastUpdateTemplates: getMeta(db, "last_update_templates"),
+    lastUpdateEmployees: getMeta(db, "last_update_employees"),
     roomsCount: count("rooms"),
     templatesCount: count("templates"),
   };

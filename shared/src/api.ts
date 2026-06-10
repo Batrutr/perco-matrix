@@ -39,7 +39,7 @@ export interface MatrixCell {
 }
 
 /** Тип сущности для обновления */
-export type RefreshKind = "rooms" | "templates" | "all";
+export type RefreshKind = "rooms" | "templates" | "all" | "employees";
 
 /** Статус фонового обновления */
 export interface RefreshStatus {
@@ -56,6 +56,7 @@ export interface RefreshStatus {
 export interface StateMeta {
   lastUpdateRooms: string | null;
   lastUpdateTemplates: string | null;
+  lastUpdateEmployees: string | null;
   roomsCount: number;
   templatesCount: number;
 }

@@ -48,12 +48,28 @@ export class RefreshState {
   }
 
   private async run(kind: RefreshKind): Promise<void> {
+    if (kind === "employees") {
+      await this.syncEmployees();
+      return;
+    }
     if (kind === "rooms" || kind === "all") {
       await this.syncRooms();
     }
     if (kind === "templates" || kind === "all") {
       await this.syncTemplates();
     }
+  }
+
+  /** Быстрое обновление только числа сотрудников (без N+1 по шаблонам). */
+  private async syncEmployees(): Promise<void> {
+    if (!this.fetchEmployeeCounts) {
+      throw new Error("БД PERCo не настроена — счётчик сотрудников недоступен");
+    }
+    this.status.total = 1;
+    this.status.done = 0;
+    setEmployeeCounts(this.db, await this.fetchEmployeeCounts());
+    this.status.done = 1;
+    setMeta(this.db, "last_update_employees", new Date().toISOString());
   }
 
   private async syncRooms(): Promise<void> {

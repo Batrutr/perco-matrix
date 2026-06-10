@@ -86,7 +86,7 @@ test("buildCellIndex + cellKey", () => {
 
 test("scheduleAbbr: таблица + fallback на первую букву", () => {
   assert.equal(scheduleAbbr("Всегда"), "В");
-  assert.equal(scheduleAbbr("С 8 до 21"), "П");
+  assert.equal(scheduleAbbr("С 8 до 21 все дни"), "О");
   assert.equal(scheduleAbbr("Неизвестный график"), "Н"); // fallback
   assert.equal(scheduleAbbr("   "), "•"); // пустое
 });
