@@ -1,7 +1,12 @@
 // Виртуализированная сетка матрицы: строки (помещения) и столбцы (шаблоны).
 // Шапка и первый столбец зафиксированы (sticky). Закреплённые шаблоны — это
 // дополнительные sticky-столбцы слева (не прокручиваются по горизонтали).
-import { useRef, useState, type CSSProperties } from "react";
+//
+// Перф: ячейки и заголовки — React.memo с примитивными/стабильными пропсами.
+// При наведении меняется только isHot затронутых столбцов, поэтому перерисовываются
+// лишь они, а не вся видимая сетка. Подсветка СТРОКИ — чистым CSS (.mx-row.hot),
+// без участия пропа ячейки, поэтому движение вдоль столбца не трогает ячейки.
+import { memo, useCallback, useRef, useState, type CSSProperties } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { MatrixCell, Template } from "@perco/shared";
 import { cellKey, cellText, describeCell, type RoomRow } from "./model.js";
@@ -36,6 +41,103 @@ export interface HoverInfo {
   room: RoomRow;
   cell: MatrixCell | undefined;
 }
+
+// --- Мемоизированные ячейка и заголовок столбца ---
+
+interface HeaderCellProps {
+  template: Template;
+  left: number;
+  pinned: boolean;
+  isHot: boolean;
+  isDim: boolean;
+  mark: HideFlags | undefined;
+  onContext: (templateId: number, x: number, y: number) => void;
+}
+
+const HeaderCell = memo(function HeaderCell({
+  template: t,
+  left,
+  pinned,
+  isHot,
+  isDim,
+  mark,
+  onContext,
+}: HeaderCellProps) {
+  const style: CSSProperties = pinned
+    ? { position: "sticky", left, width: COL_W, height: HEADER_H, zIndex: 5 }
+    : { position: "absolute", left, width: COL_W, height: HEADER_H };
+  return (
+    <div
+      className={`mx-th${pinned ? " pinned" : ""}${isHot ? " hot" : ""}${isDim ? " dim" : ""}${mark ? " marked" : ""}`}
+      style={style}
+      title={t.comment ? `${t.name} — ${t.comment}` : t.name}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onContext(t.id, e.clientX, e.clientY);
+      }}
+    >
+      {pinned && (
+        <span className="mx-pinmark" title="Закреплён (ПКМ → Открепить)">
+          📌
+        </span>
+      )}
+      {mark && hideMarks(mark, "помещения")}
+      <span className="mx-th-text">{t.name}</span>
+      <span className="mx-th-counts">
+        <span className="c-rooms" title={`Помещений: ${t.roomCount}`}>
+          {t.roomCount}
+        </span>
+        <span className="c-emp" title="Сотрудников">
+          {t.employeeCount ?? "–"}
+        </span>
+      </span>
+    </div>
+  );
+});
+
+interface BodyCellProps {
+  template: Template;
+  room: RoomRow;
+  cell: MatrixCell | undefined;
+  left: number;
+  pinned: boolean;
+  isHot: boolean; // подсветка по столбцу (строка — через CSS .mx-row.hot)
+  onEnter: (room: RoomRow, template: Template, cell: MatrixCell | undefined) => void;
+}
+
+const BodyCell = memo(function BodyCell({
+  template,
+  room,
+  cell,
+  left,
+  pinned,
+  isHot,
+  onEnter,
+}: BodyCellProps) {
+  const style: CSSProperties = pinned
+    ? { position: "sticky", left, width: COL_W, height: ROW_H, zIndex: 1 }
+    : { position: "absolute", left, width: COL_W, height: ROW_H };
+  return (
+    <div
+      className={`mx-cell${pinned ? " pinned" : ""}${cell ? " filled" : ""}${isHot ? " hot" : ""}`}
+      style={style}
+      title={cell ? describeCell(cell, template, room) : ""}
+      onMouseEnter={() => onEnter(room, template, cell)}
+    >
+      {cell ? (
+        <>
+          <span className="mx-cell-text">{cellText(cell)}</span>
+          {(cell.isGuard || cell.isAntipass) && (
+            <span className="mx-badges">
+              {cell.isGuard && <i className="mx-badge g" title="Охрана" />}
+              {cell.isAntipass && <i className="mx-badge a" title="Antipass" />}
+            </span>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+});
 
 interface Props {
   rooms: RoomRow[]; // уже видимые (с учётом сворачивания)
@@ -94,86 +196,53 @@ export function MatrixGrid({
   const pinnedW = pinnedTemplates.length * COL_W;
   const contentW = LABEL_W + pinnedW + colV.getTotalSize();
 
-  const setHovered = (h: { roomId: number; templateId: number } | null, info: HoverInfo | null) => {
-    setHover(h);
-    onHover?.(info);
-  };
+  // Стабильные колбэки — чтобы memo-пропсы ячеек не менялись на каждый рендер.
+  const handleEnter = useCallback(
+    (room: RoomRow, template: Template, cell: MatrixCell | undefined) => {
+      setHover({ roomId: room.roomId, templateId: template.id });
+      onHover?.({ template, room, cell });
+    },
+    [onHover],
+  );
+  const handleLeave = useCallback(() => {
+    setHover(null);
+    onHover?.(null);
+  }, [onHover]);
+  const handleHeaderContext = useCallback(
+    (templateId: number, x: number, y: number) => onTemplateContext?.(templateId, x, y),
+    [onTemplateContext],
+  );
 
-  const ctxHandler = (templateId: number) =>
-    onTemplateContext
-      ? (e: React.MouseEvent) => {
-          e.preventDefault();
-          onTemplateContext(templateId, e.clientX, e.clientY);
-        }
-      : undefined;
+  const hotTemplateId = hover?.templateId ?? null;
 
-  const headerCell = (t: Template, style: CSSProperties, pinned: boolean) => {
-    const hot = hover?.templateId === t.id;
-    const dim = highlightedTemplates && !highlightedTemplates.has(t.id);
-    const mark = markedTemplates?.get(t.id);
-    return (
-      <div
-        key={pinned ? `p${t.id}` : t.id}
-        className={`mx-th${pinned ? " pinned" : ""}${hot ? " hot" : ""}${dim ? " dim" : ""}${mark ? " marked" : ""}`}
-        style={style}
-        title={t.comment ? `${t.name} — ${t.comment}` : t.name}
-        onContextMenu={ctxHandler(t.id)}
-      >
-        {pinned && (
-          <span className="mx-pinmark" title="Закреплён (ПКМ → Открепить)">
-            📌
-          </span>
-        )}
-        {mark && hideMarks(mark, "помещения")}
-        <span className="mx-th-text">{t.name}</span>
-        <span className="mx-th-counts">
-          <span className="c-rooms" title={`Помещений: ${t.roomCount}`}>
-            {t.roomCount}
-          </span>
-          <span className="c-emp" title="Сотрудников">
-            {t.employeeCount ?? "–"}
-          </span>
-        </span>
-      </div>
-    );
-  };
+  const renderHeader = (t: Template, left: number, pinned: boolean) => (
+    <HeaderCell
+      key={pinned ? `p${t.id}` : t.id}
+      template={t}
+      left={left}
+      pinned={pinned}
+      isHot={hotTemplateId === t.id}
+      isDim={!!(highlightedTemplates && !highlightedTemplates.has(t.id))}
+      mark={markedTemplates?.get(t.id)}
+      onContext={handleHeaderContext}
+    />
+  );
 
-  const bodyCell = (
-    t: Template,
-    r: RoomRow,
-    rowHot: boolean,
-    style: CSSProperties,
-    pinned: boolean,
-  ) => {
-    const cell = cellIndex.get(cellKey(t.id, r.roomId));
-    const hot = hover?.templateId === t.id || rowHot;
-    return (
-      <div
-        key={pinned ? `p${t.id}` : t.id}
-        className={`mx-cell${pinned ? " pinned" : ""}${cell ? " filled" : ""}${hot ? " hot" : ""}`}
-        style={style}
-        title={cell ? describeCell(cell, t, r) : ""}
-        onMouseEnter={() =>
-          setHovered({ roomId: r.roomId, templateId: t.id }, { template: t, room: r, cell })
-        }
-      >
-        {cell ? (
-          <>
-            <span className="mx-cell-text">{cellText(cell)}</span>
-            {(cell.isGuard || cell.isAntipass) && (
-              <span className="mx-badges">
-                {cell.isGuard && <i className="mx-badge g" title="Охрана" />}
-                {cell.isAntipass && <i className="mx-badge a" title="Antipass" />}
-              </span>
-            )}
-          </>
-        ) : null}
-      </div>
-    );
-  };
+  const renderCell = (t: Template, r: RoomRow, left: number, pinned: boolean) => (
+    <BodyCell
+      key={pinned ? `p${t.id}` : t.id}
+      template={t}
+      room={r}
+      cell={cellIndex.get(cellKey(t.id, r.roomId))}
+      left={left}
+      pinned={pinned}
+      isHot={hotTemplateId === t.id}
+      onEnter={handleEnter}
+    />
+  );
 
   return (
-    <div ref={parentRef} className="mx-scroll" onMouseLeave={() => setHovered(null, null)}>
+    <div ref={parentRef} className="mx-scroll" onMouseLeave={handleLeave}>
       {/* Шапка */}
       <div className="mx-header" style={{ width: contentW, height: HEADER_H }}>
         <div className="mx-corner" style={{ width: LABEL_W, height: HEADER_H }}>
@@ -183,20 +252,8 @@ export function MatrixGrid({
             <span className="c-emp">сотрудников</span>
           </span>
         </div>
-        {pinnedTemplates.map((t, i) =>
-          headerCell(
-            t,
-            { position: "sticky", left: LABEL_W + i * COL_W, width: COL_W, height: HEADER_H, zIndex: 5 },
-            true,
-          ),
-        )}
-        {colItems.map((col) =>
-          headerCell(
-            templates[col.index]!,
-            { position: "absolute", left: LABEL_W + pinnedW + col.start, width: COL_W, height: HEADER_H },
-            false,
-          ),
-        )}
+        {pinnedTemplates.map((t, i) => renderHeader(t, LABEL_W + i * COL_W, true))}
+        {colItems.map((col) => renderHeader(templates[col.index]!, LABEL_W + pinnedW + col.start, false))}
       </div>
 
       {/* Тело */}
@@ -240,24 +297,8 @@ export function MatrixGrid({
                 <span className="mx-name">{r.name || `#${r.roomId}`}</span>
                 {rowMark && hideMarks(rowMark, "шаблоны")}
               </div>
-              {pinnedTemplates.map((t, i) =>
-                bodyCell(
-                  t,
-                  r,
-                  !!rowHot,
-                  { position: "sticky", left: LABEL_W + i * COL_W, width: COL_W, height: ROW_H, zIndex: 1 },
-                  true,
-                ),
-              )}
-              {colItems.map((col) =>
-                bodyCell(
-                  templates[col.index]!,
-                  r,
-                  !!rowHot,
-                  { position: "absolute", left: LABEL_W + pinnedW + col.start, width: COL_W, height: ROW_H },
-                  false,
-                ),
-              )}
+              {pinnedTemplates.map((t, i) => renderCell(t, r, LABEL_W + i * COL_W, true))}
+              {colItems.map((col) => renderCell(templates[col.index]!, r, LABEL_W + pinnedW + col.start, false))}
             </div>
           );
         })}

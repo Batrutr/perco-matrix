@@ -74,9 +74,11 @@ export function loadConfig(): AppConfig {
   const appPassword = process.env.APP_PASSWORD ?? "";
   return {
     perco: {
-      host: normalizeHost(required("PERCO_HOST", "https://perco.example.local")),
-      login: required("PERCO_LOGIN", "admin"),
-      password: required("PERCO_PASSWORD", "changeme"),
+      // Без «известных» дефолтов (admin/changeme): пусто → клиент PERCo не
+      // авторизуется и обновление честно упадёт с понятной ошибкой.
+      host: process.env.PERCO_HOST ? normalizeHost(process.env.PERCO_HOST) : "",
+      login: process.env.PERCO_LOGIN ?? "",
+      password: process.env.PERCO_PASSWORD ?? "",
       concurrency: posInt("PERCO_CONCURRENCY", 8),
       tlsRejectUnauthorized: bool(process.env.PERCO_TLS_REJECT_UNAUTHORIZED, true),
     },

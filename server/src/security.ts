@@ -5,11 +5,10 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import cookie from "@fastify/cookie";
 import { z } from "zod";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { AppConfig } from "./config.js";
 
 const SESSION_COOKIE = "perco_session";
-const SESSION_VALUE = "ok";
 const SESSION_MAX_AGE = 60 * 60 * 8; // 8 часов
 
 const loginSchema = z.object({ password: z.string() });
@@ -45,12 +44,22 @@ export async function registerSecurity(app: FastifyInstance, config: AppConfig):
 
   const authRequired = config.appPassword.length > 0;
 
+  // Серверный набор валидных сессий: cookie несёт случайный id, а не константу,
+  // поэтому logout реально инвалидирует сессию, а перехваченный токен можно отозвать.
+  // Хранилище в памяти процесса (один инстанс); при рестарте все сессии сбрасываются.
+  const sessions = new Set<string>();
+
+  const sessionId = (req: FastifyRequest): string | null => {
+    const raw = req.cookies[SESSION_COOKIE];
+    if (!raw) return null;
+    const un = app.unsignCookie(raw);
+    return un.valid && un.value ? un.value : null;
+  };
+
   const isAuthed = (req: FastifyRequest): boolean => {
     if (!authRequired) return true;
-    const raw = req.cookies[SESSION_COOKIE];
-    if (!raw) return false;
-    const un = app.unsignCookie(raw);
-    return un.valid && un.value === SESSION_VALUE;
+    const sid = sessionId(req);
+    return sid !== null && sessions.has(sid);
   };
 
   // Гейт: защищаем /api/* (кроме auth и health). Статический шелл публичен —
@@ -85,7 +94,9 @@ export async function registerSecurity(app: FastifyInstance, config: AppConfig):
       if (!sameSecret(parsed.data.password, config.appPassword)) {
         return reply.code(401).send({ error: "Неверный пароль" });
       }
-      reply.setCookie(SESSION_COOKIE, SESSION_VALUE, {
+      const sid = randomBytes(18).toString("hex");
+      sessions.add(sid);
+      reply.setCookie(SESSION_COOKIE, sid, {
         signed: true,
         httpOnly: true,
         sameSite: "strict",
@@ -96,7 +107,9 @@ export async function registerSecurity(app: FastifyInstance, config: AppConfig):
     },
   );
 
-  app.post("/api/auth/logout", async (_req, reply) => {
+  app.post("/api/auth/logout", async (req, reply) => {
+    const sid = sessionId(req);
+    if (sid) sessions.delete(sid); // реальная инвалидация на сервере
     reply.clearCookie(SESSION_COOKIE, { path: "/" });
     return { ok: true };
   });

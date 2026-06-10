@@ -8,6 +8,14 @@ import { buildApp } from "./app.js";
 
 async function main() {
   const config = loadConfig();
+
+  if (!config.appPassword) {
+    console.warn("ВНИМАНИЕ: APP_PASSWORD не задан — веб-интерфейс работает БЕЗ парольной защиты.");
+  }
+  if (!config.perco.host || !config.perco.password) {
+    console.warn("ВНИМАНИЕ: PERCO_HOST/PERCO_PASSWORD не заданы — обновление из PERCo не сработает.");
+  }
+
   const db = openDb(config.dbPath);
 
   const client = new PercoClient({
