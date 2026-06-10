@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MatrixResponse, Template } from "@perco/shared";
 import { fetchConfig, fetchMatrix } from "./api/client.js";
 import { useRefresh } from "./hooks/useRefresh.js";
@@ -59,13 +59,23 @@ export function App() {
   const [importantTemplates, setImportantTemplates] = useState<string[]>([]);
   const [menu, setMenu] = useState<Menu | null>(null);
 
+  // Счётчик поколений: применяем результат только последнего запроса
+  // (StrictMode-двойной вызов, повторные обновления, медленный старый ответ).
+  const loadGen = useRef(0);
   const load = useCallback(() => {
+    const gen = ++loadGen.current;
     setLoading(true);
     setError(null);
     fetchMatrix()
-      .then(setData)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-      .finally(() => setLoading(false));
+      .then((d) => {
+        if (gen === loadGen.current) setData(d);
+      })
+      .catch((e: unknown) => {
+        if (gen === loadGen.current) setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (gen === loadGen.current) setLoading(false);
+      });
   }, []);
 
   useEffect(load, [load]);

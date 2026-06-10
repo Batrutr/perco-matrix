@@ -124,6 +124,18 @@ test("runWithConcurrency: порядок результатов и соблюд�
   assert.ok(maxActive <= 4, `превышен лимит параллелизма: ${maxActive}`);
 });
 
+test("runWithConcurrency: мусорный limit (NaN/0) не теряет элементы", async () => {
+  const items = [1, 2, 3, 4, 5];
+  assert.deepEqual(
+    await runWithConcurrency(items, Number.NaN, async (n) => n * 10),
+    [10, 20, 30, 40, 50],
+  );
+  assert.deepEqual(
+    await runWithConcurrency(items, 0, async (n) => n * 10),
+    [10, 20, 30, 40, 50],
+  );
+});
+
 test("withRetry: повторяет транзиентную ошибку и в итоге успешно", async () => {
   let calls = 0;
   const result = await withRetry(

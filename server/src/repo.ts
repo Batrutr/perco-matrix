@@ -29,7 +29,7 @@ export function flattenTree(nodes: RoomNode[]): FlatRoom[] {
       name: node.name,
       roomId: node.room_id,
       nodeType: node.node_type,
-      isConst: node.is_const,
+      isConst: node.is_const ? 1 : 0,
       withRights: node.with_rights ? 1 : 0,
       depth,
       sortOrder: order++,
@@ -89,7 +89,7 @@ export function replaceTemplates(db: DB, list: TemplateListItem[]): void {
     db.exec("DELETE FROM templates");
     db.exec("DELETE FROM template_access");
     for (const t of list) {
-      insert.run(t.id, t.name, t.comment, t.is_removed);
+      insert.run(t.id, t.name, t.comment, t.is_removed ? 1 : 0);
     }
   });
 }
@@ -117,9 +117,9 @@ export function saveTemplateAccess(db: DB, detail: TemplateDetail): void {
         detail.id,
         a.access_zone_id,
         a.template_type,
-        a.rights.is_guard,
-        a.rights.is_antipass,
-        a.rights.is_verify,
+        a.rights.is_guard ? 1 : 0,
+        a.rights.is_antipass ? 1 : 0,
+        a.rights.is_verify ? 1 : 0,
         a.rights.schedule_type.id,
         a.rights.schedule_type.name,
         a.rights.schedule.id,

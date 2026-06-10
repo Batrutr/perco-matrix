@@ -2,6 +2,7 @@
 // внутренний API и раздача статики. Вынесено отдельно для переиспользования в тестах.
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
+import fastifyCompress from "@fastify/compress";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -35,6 +36,10 @@ export async function buildApp(opts: BuildOptions): Promise<FastifyInstance> {
   });
 
   await registerSecurity(app, config);
+
+  // Сжатие ответов (gzip/br): матрица с десятками тысяч ячеек и повторяющимися
+  // строками графиков жмётся в разы.
+  await app.register(fastifyCompress, { global: true, threshold: 1024 });
 
   app.get("/api/health", async () => ({
     ok: true,

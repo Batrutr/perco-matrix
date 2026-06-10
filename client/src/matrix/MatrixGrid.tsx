@@ -71,7 +71,9 @@ export function MatrixGrid({
   onRoomContext,
 }: Props) {
   const parentRef = useRef<HTMLDivElement>(null);
-  const [hover, setHover] = useState<{ row: number; templateId: number } | null>(null);
+  // Наведение храним по стабильным id (roomId/templateId), а не по индексу строки —
+  // иначе подсветка «съезжает» при смене состава строк (сворачивание/фильтр/скрытие).
+  const [hover, setHover] = useState<{ roomId: number; templateId: number } | null>(null);
 
   const rowV = useVirtualizer({
     count: rooms.length,
@@ -92,7 +94,7 @@ export function MatrixGrid({
   const pinnedW = pinnedTemplates.length * COL_W;
   const contentW = LABEL_W + pinnedW + colV.getTotalSize();
 
-  const setHovered = (h: { row: number; templateId: number } | null, info: HoverInfo | null) => {
+  const setHovered = (h: { roomId: number; templateId: number } | null, info: HoverInfo | null) => {
     setHover(h);
     onHover?.(info);
   };
@@ -139,7 +141,6 @@ export function MatrixGrid({
   const bodyCell = (
     t: Template,
     r: RoomRow,
-    rowIndex: number,
     rowHot: boolean,
     style: CSSProperties,
     pinned: boolean,
@@ -153,7 +154,7 @@ export function MatrixGrid({
         style={style}
         title={cell ? describeCell(cell, t, r) : ""}
         onMouseEnter={() =>
-          setHovered({ row: rowIndex, templateId: t.id }, { template: t, room: r, cell })
+          setHovered({ roomId: r.roomId, templateId: t.id }, { template: t, room: r, cell })
         }
       >
         {cell ? (
@@ -202,7 +203,7 @@ export function MatrixGrid({
       <div className="mx-body" style={{ width: contentW, height: rowV.getTotalSize() }}>
         {rowItems.map((row) => {
           const r = rooms[row.index]!;
-          const rowHot = hover?.row === row.index;
+          const rowHot = hover?.roomId === r.roomId;
           const rowDim = highlightedRooms && !highlightedRooms.has(r.roomId);
           const rowMark = markedRooms?.get(r.roomId);
           return (
@@ -243,7 +244,6 @@ export function MatrixGrid({
                 bodyCell(
                   t,
                   r,
-                  row.index,
                   !!rowHot,
                   { position: "sticky", left: LABEL_W + i * COL_W, width: COL_W, height: ROW_H, zIndex: 1 },
                   true,
@@ -253,7 +253,6 @@ export function MatrixGrid({
                 bodyCell(
                   templates[col.index]!,
                   r,
-                  row.index,
                   !!rowHot,
                   { position: "absolute", left: LABEL_W + pinnedW + col.start, width: COL_W, height: ROW_H },
                   false,
