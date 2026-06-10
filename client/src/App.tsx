@@ -18,11 +18,19 @@ import {
   type SortDir,
   type SortKey,
 } from "./matrix/search.js";
+import {
+  roomIdsWithAccessInTemplate,
+  roomsVisibleAfterHiding,
+  templateIdsWithAccessInRoom,
+} from "./matrix/hide.js";
 import { MatrixGrid, type HoverInfo } from "./matrix/MatrixGrid.js";
 import { RefreshBar } from "./components/RefreshBar.js";
 import { FilterPanel } from "./components/FilterPanel.js";
 import { SearchSortBar } from "./components/SearchSortBar.js";
+import { ContextMenu, type MenuItem } from "./components/ContextMenu.js";
 import "./App.css";
+
+type Menu = { kind: "template" | "room"; id: number; x: number; y: number };
 
 export function App() {
   const [data, setData] = useState<MatrixResponse | null>(null);
@@ -35,6 +43,12 @@ export function App() {
   const [roomQuery, setRoomQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [hiddenRoomIds, setHiddenRoomIds] = useState<ReadonlySet<number>>(new Set());
+  const [hiddenTemplateIds, setHiddenTemplateIds] = useState<ReadonlySet<number>>(new Set());
+  // «Источники» скрытия — для пометки в сетке (через какой шаблон/помещение что-то скрыто)
+  const [templatesDrivingHide, setTemplatesDrivingHide] = useState<ReadonlySet<number>>(new Set());
+  const [roomsDrivingHide, setRoomsDrivingHide] = useState<ReadonlySet<number>>(new Set());
+  const [menu, setMenu] = useState<Menu | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -73,20 +87,32 @@ export function App() {
     return matchedRoomIds ? roomsWithAncestors(data.rooms, matchedRoomIds) : undefined;
   }, [data, roomQuery, filterMode, matches]);
 
+  // Скрытие строк контекстным меню (по критериям). Видны помещения, у которых в
+  // поддереве осталась хотя бы одна нескрытая строка (предки сохраняются).
+  const contextRoomKeep = useMemo(
+    () => (data && hiddenRoomIds.size ? roomsVisibleAfterHiding(data.rooms, hiddenRoomIds) : undefined),
+    [data, hiddenRoomIds],
+  );
+  const finalRoomKeep = useMemo(() => {
+    if (roomKeep && contextRoomKeep) return intersect(roomKeep, contextRoomKeep);
+    return roomKeep ?? contextRoomKeep;
+  }, [roomKeep, contextRoomKeep]);
+
   const visibleRooms = useMemo(
-    () => computeVisibleRooms(allRooms, collapsed, roomKeep),
-    [allRooms, collapsed, roomKeep],
+    () => computeVisibleRooms(allRooms, collapsed, finalRoomKeep),
+    [allRooms, collapsed, finalRoomKeep],
   );
 
   const templates = useMemo(() => data?.templates ?? [], [data]);
 
-  // Столбцы: сортировка → поиск по имени → фильтр-скрытие по значению.
+  // Столбцы: сортировка → поиск по имени → фильтр по значению → скрытие меню.
   const displayedTemplates = useMemo(() => {
     let list = sortTemplates(templates, sortKey, sortDir);
     if (templateQuery.trim()) list = list.filter((t) => nameMatches(t.name, templateQuery));
     if (filterMode && matches) list = list.filter((t) => matches.templateIds.has(t.id));
+    if (hiddenTemplateIds.size) list = list.filter((t) => !hiddenTemplateIds.has(t.id));
     return list;
-  }, [templates, sortKey, sortDir, templateQuery, filterMode, matches]);
+  }, [templates, sortKey, sortDir, templateQuery, filterMode, matches, hiddenTemplateIds]);
 
   const toggle = useCallback((id: number) => {
     setCollapsed((prev) => {
@@ -97,6 +123,82 @@ export function App() {
     });
   }, []);
 
+  // Скрыть/показать помещения по доступу в шаблоне.
+  // withAccess: false → без доступа, true → с доступом; hide: добавить/убрать из скрытых.
+  const setRoomsHiddenForTemplate = useCallback(
+    (templateId: number, withAccess: boolean, hide: boolean) => {
+      if (!data) return;
+      const access = roomIdsWithAccessInTemplate(data.cells, templateId);
+      setHiddenRoomIds((prev) => {
+        const next = new Set(prev);
+        for (const r of data.rooms) {
+          if (access.has(r.roomId) !== withAccess) continue;
+          if (hide) next.add(r.roomId);
+          else next.delete(r.roomId);
+        }
+        return next;
+      });
+      // пометка: через этот шаблон что-то скрыто (снимается при «Показать» через него)
+      setTemplatesDrivingHide((prev) => {
+        const next = new Set(prev);
+        if (hide) next.add(templateId);
+        else next.delete(templateId);
+        return next;
+      });
+    },
+    [data],
+  );
+
+  // Скрыть/показать шаблоны по доступу в помещение.
+  const setTemplatesHiddenForRoom = useCallback(
+    (roomId: number, withAccess: boolean, hide: boolean) => {
+      if (!data) return;
+      const access = templateIdsWithAccessInRoom(data.cells, roomId);
+      setHiddenTemplateIds((prev) => {
+        const next = new Set(prev);
+        for (const t of data.templates) {
+          if (access.has(t.id) !== withAccess) continue;
+          if (hide) next.add(t.id);
+          else next.delete(t.id);
+        }
+        return next;
+      });
+      setRoomsDrivingHide((prev) => {
+        const next = new Set(prev);
+        if (hide) next.add(roomId);
+        else next.delete(roomId);
+        return next;
+      });
+    },
+    [data],
+  );
+
+  const clearHidden = useCallback(() => {
+    setHiddenRoomIds(new Set());
+    setHiddenTemplateIds(new Set());
+    setTemplatesDrivingHide(new Set());
+    setRoomsDrivingHide(new Set());
+  }, []);
+
+  const menuItems: MenuItem[] = useMemo(() => {
+    if (!menu) return [];
+    if (menu.kind === "template") {
+      return [
+        { label: "Скрыть помещения без доступа в этом шаблоне", onClick: () => setRoomsHiddenForTemplate(menu.id, false, true) },
+        { label: "Скрыть помещения с доступом в этом шаблоне", onClick: () => setRoomsHiddenForTemplate(menu.id, true, true) },
+        { label: "Показать помещения без доступа в этом шаблоне", divider: true, onClick: () => setRoomsHiddenForTemplate(menu.id, false, false) },
+        { label: "Показать помещения с доступом в этом шаблоне", onClick: () => setRoomsHiddenForTemplate(menu.id, true, false) },
+      ];
+    }
+    return [
+      { label: "Скрыть шаблоны без доступа в это помещение", onClick: () => setTemplatesHiddenForRoom(menu.id, false, true) },
+      { label: "Скрыть шаблоны с доступом в это помещение", onClick: () => setTemplatesHiddenForRoom(menu.id, true, true) },
+      { label: "Показать шаблоны без доступа в это помещение", divider: true, onClick: () => setTemplatesHiddenForRoom(menu.id, false, false) },
+      { label: "Показать шаблоны с доступом в это помещение", onClick: () => setTemplatesHiddenForRoom(menu.id, true, false) },
+    ];
+  }, [menu, setRoomsHiddenForTemplate, setTemplatesHiddenForRoom]);
+
+  const hasHidden = hiddenRoomIds.size > 0 || hiddenTemplateIds.size > 0;
   const isEmpty = !loading && !error && allRooms.length === 0 && templates.length === 0;
 
   return (
@@ -140,6 +242,15 @@ export function App() {
             {visibleRooms.length} / {allRooms.length}
           </span>
         )}
+        {hasHidden && (
+          <button
+            className="show-hidden"
+            onClick={clearHidden}
+            title="Показать разом всё, что было скрыто через контекстное меню"
+          >
+            Показать всё скрытое
+          </button>
+        )}
       </div>
 
       <div className="app-grid">
@@ -157,11 +268,19 @@ export function App() {
             collapsed={collapsed}
             highlightedTemplates={highlightMode && matches ? matches.templateIds : undefined}
             highlightedRooms={highlightMode && matches ? matches.roomIds : undefined}
+            markedTemplates={templatesDrivingHide}
+            markedRooms={roomsDrivingHide}
             onToggle={toggle}
             onHover={setHover}
+            onTemplateContext={(id, x, y) => setMenu({ kind: "template", id, x, y })}
+            onRoomContext={(id, x, y) => setMenu({ kind: "room", id, x, y })}
           />
         )}
       </div>
+
+      {menu && (
+        <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />
+      )}
 
       <footer className="app-info">
         {hover ? (
