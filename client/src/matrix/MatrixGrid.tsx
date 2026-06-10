@@ -5,7 +5,26 @@ import { useRef, useState, type CSSProperties } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { MatrixCell, Template } from "@perco/shared";
 import { cellKey, cellText, describeCell, type RoomRow } from "./model.js";
+import type { HideFlags } from "./hide.js";
 import "./matrix.css";
+
+/** Значки активного скрытия: ● — скрыто «с доступом», ○ — скрыто «без доступа». */
+function hideMarks(f: HideFlags, noun: string) {
+  return (
+    <span className="mx-hidemarks">
+      {f.withAccess && (
+        <span className="mx-hidemark" title={`Скрыты ${noun} с доступом`}>
+          ●
+        </span>
+      )}
+      {f.noAccess && (
+        <span className="mx-hidemark" title={`Скрыты ${noun} без доступа`}>
+          ○
+        </span>
+      )}
+    </span>
+  );
+}
 
 export const ROW_H = 28;
 export const HEADER_H = 144;
@@ -26,8 +45,10 @@ interface Props {
   collapsed: ReadonlySet<number>;
   highlightedTemplates?: ReadonlySet<number>;
   highlightedRooms?: ReadonlySet<number>;
-  markedTemplates?: ReadonlySet<number>;
-  markedRooms?: ReadonlySet<number>;
+  /** Шаблон → какие помещения скрыты через него (метки в шапке) */
+  markedTemplates?: ReadonlyMap<number, HideFlags>;
+  /** Помещение → какие шаблоны скрыты через него (метки у ярлыка) */
+  markedRooms?: ReadonlyMap<number, HideFlags>;
   onToggle: (roomId: number) => void;
   onHover?: (info: HoverInfo | null) => void;
   onTemplateContext?: (templateId: number, x: number, y: number) => void;
@@ -87,11 +108,11 @@ export function MatrixGrid({
   const headerCell = (t: Template, style: CSSProperties, pinned: boolean) => {
     const hot = hover?.templateId === t.id;
     const dim = highlightedTemplates && !highlightedTemplates.has(t.id);
-    const marked = markedTemplates?.has(t.id);
+    const mark = markedTemplates?.get(t.id);
     return (
       <div
         key={pinned ? `p${t.id}` : t.id}
-        className={`mx-th${pinned ? " pinned" : ""}${hot ? " hot" : ""}${dim ? " dim" : ""}${marked ? " marked" : ""}`}
+        className={`mx-th${pinned ? " pinned" : ""}${hot ? " hot" : ""}${dim ? " dim" : ""}${mark ? " marked" : ""}`}
         style={style}
         title={t.comment ? `${t.name} — ${t.comment}` : t.name}
         onContextMenu={ctxHandler(t.id)}
@@ -101,11 +122,7 @@ export function MatrixGrid({
             📌
           </span>
         )}
-        {marked && (
-          <span className="mx-hidemark" title="Через этот шаблон скрыты помещения (ПКМ → Показать)">
-            ⊘
-          </span>
-        )}
+        {mark && hideMarks(mark, "помещения")}
         <span className="mx-th-text">{t.name}</span>
         <span className="mx-th-counts">
           <span className="c-rooms" title={`Помещений: ${t.roomCount}`}>
@@ -187,7 +204,7 @@ export function MatrixGrid({
           const r = rooms[row.index]!;
           const rowHot = hover?.row === row.index;
           const rowDim = highlightedRooms && !highlightedRooms.has(r.roomId);
-          const rowMarked = markedRooms?.has(r.roomId);
+          const rowMark = markedRooms?.get(r.roomId);
           return (
             <div
               key={row.key}
@@ -195,7 +212,7 @@ export function MatrixGrid({
               style={{ top: row.start, height: ROW_H, width: contentW }}
             >
               <div
-                className={`mx-label${r.hasChildren ? " clickable" : ""}${rowMarked ? " marked" : ""}`}
+                className={`mx-label${r.hasChildren ? " clickable" : ""}${rowMark ? " marked" : ""}`}
                 style={{ width: LABEL_W, height: ROW_H }}
                 onClick={() => r.hasChildren && onToggle(r.id)}
                 onContextMenu={
@@ -220,11 +237,7 @@ export function MatrixGrid({
                   <span className="mx-caret leaf" />
                 )}
                 <span className="mx-name">{r.name || `#${r.roomId}`}</span>
-                {rowMarked && (
-                  <span className="mx-hidemark" title="Через это помещение скрыты шаблоны (ПКМ → Показать)">
-                    ⊘
-                  </span>
-                )}
+                {rowMark && hideMarks(rowMark, "шаблоны")}
               </div>
               {pinnedTemplates.map((t, i) =>
                 bodyCell(

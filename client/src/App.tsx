@@ -22,6 +22,7 @@ import {
   roomIdsWithAccessInTemplate,
   roomsVisibleAfterHiding,
   templateIdsWithAccessInRoom,
+  type HideFlags,
 } from "./matrix/hide.js";
 import { MatrixGrid, type HoverInfo } from "./matrix/MatrixGrid.js";
 import { RefreshBar } from "./components/RefreshBar.js";
@@ -43,11 +44,16 @@ export function App() {
   const [roomQuery, setRoomQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [hiddenRoomIds, setHiddenRoomIds] = useState<ReadonlySet<number>>(new Set());
-  const [hiddenTemplateIds, setHiddenTemplateIds] = useState<ReadonlySet<number>>(new Set());
-  // «Источники» скрытия — для пометки в сетке (через какой шаблон/помещение что-то скрыто)
-  const [templatesDrivingHide, setTemplatesDrivingHide] = useState<ReadonlySet<number>>(new Set());
-  const [roomsDrivingHide, setRoomsDrivingHide] = useState<ReadonlySet<number>>(new Set());
+  // Скрытие задаётся покритериально и через источник:
+  //  roomHidesByTemplate[templateId] = какие помещения скрыты через этот шаблон
+  //  templateHidesByRoom[roomId]     = какие шаблоны скрыты через это помещение
+  // Каждый критерий — независимый тумблер. Карта = и состояние, и пометка источника.
+  const [roomHidesByTemplate, setRoomHidesByTemplate] = useState<ReadonlyMap<number, HideFlags>>(
+    new Map(),
+  );
+  const [templateHidesByRoom, setTemplateHidesByRoom] = useState<ReadonlyMap<number, HideFlags>>(
+    new Map(),
+  );
   const [pinnedTemplateIds, setPinnedTemplateIds] = useState<number[]>([]);
   const [menu, setMenu] = useState<Menu | null>(null);
 
@@ -75,6 +81,33 @@ export function App() {
 
   const filterMode = filter.active && filter.mode === "filter";
   const highlightMode = filter.active && filter.mode === "highlight";
+
+  // Скрытые элементы — производные от карт скрытия (объединение по всем источникам/критериям).
+  const hiddenRoomIds = useMemo(() => {
+    const s = new Set<number>();
+    if (!data) return s;
+    for (const [templateId, flags] of roomHidesByTemplate) {
+      const access = roomIdsWithAccessInTemplate(data.cells, templateId);
+      for (const r of data.rooms) {
+        const has = access.has(r.roomId);
+        if ((flags.noAccess && !has) || (flags.withAccess && has)) s.add(r.roomId);
+      }
+    }
+    return s;
+  }, [data, roomHidesByTemplate]);
+
+  const hiddenTemplateIds = useMemo(() => {
+    const s = new Set<number>();
+    if (!data) return s;
+    for (const [roomId, flags] of templateHidesByRoom) {
+      const access = templateIdsWithAccessInRoom(data.cells, roomId);
+      for (const t of data.templates) {
+        const has = access.has(t.id);
+        if ((flags.noAccess && !has) || (flags.withAccess && has)) s.add(t.id);
+      }
+    }
+    return s;
+  }, [data, templateHidesByRoom]);
 
   // Строки: совмещаем поиск по помещению и фильтр-скрытие (пересечение совпавших
   // roomId), затем добавляем предков и применяем сворачивание.
@@ -140,61 +173,33 @@ export function App() {
     });
   }, []);
 
-  // Скрыть/показать помещения по доступу в шаблоне.
-  // withAccess: false → без доступа, true → с доступом; hide: добавить/убрать из скрытых.
-  const setRoomsHiddenForTemplate = useCallback(
-    (templateId: number, withAccess: boolean, hide: boolean) => {
-      if (!data) return;
-      const access = roomIdsWithAccessInTemplate(data.cells, templateId);
-      setHiddenRoomIds((prev) => {
-        const next = new Set(prev);
-        for (const r of data.rooms) {
-          if (access.has(r.roomId) !== withAccess) continue;
-          if (hide) next.add(r.roomId);
-          else next.delete(r.roomId);
-        }
-        return next;
-      });
-      // пометка: через этот шаблон что-то скрыто (снимается при «Показать» через него)
-      setTemplatesDrivingHide((prev) => {
-        const next = new Set(prev);
-        if (hide) next.add(templateId);
-        else next.delete(templateId);
-        return next;
-      });
-    },
-    [data],
-  );
+  // Тумблер скрытия помещений через шаблон по одному критерию (как закрепить/открепить).
+  const toggleRoomHide = useCallback((templateId: number, criterion: keyof HideFlags) => {
+    setRoomHidesByTemplate((prev) => {
+      const next = new Map(prev);
+      const cur = next.get(templateId) ?? { noAccess: false, withAccess: false };
+      const updated = { ...cur, [criterion]: !cur[criterion] };
+      if (!updated.noAccess && !updated.withAccess) next.delete(templateId);
+      else next.set(templateId, updated);
+      return next;
+    });
+  }, []);
 
-  // Скрыть/показать шаблоны по доступу в помещение.
-  const setTemplatesHiddenForRoom = useCallback(
-    (roomId: number, withAccess: boolean, hide: boolean) => {
-      if (!data) return;
-      const access = templateIdsWithAccessInRoom(data.cells, roomId);
-      setHiddenTemplateIds((prev) => {
-        const next = new Set(prev);
-        for (const t of data.templates) {
-          if (access.has(t.id) !== withAccess) continue;
-          if (hide) next.add(t.id);
-          else next.delete(t.id);
-        }
-        return next;
-      });
-      setRoomsDrivingHide((prev) => {
-        const next = new Set(prev);
-        if (hide) next.add(roomId);
-        else next.delete(roomId);
-        return next;
-      });
-    },
-    [data],
-  );
+  // Тумблер скрытия шаблонов через помещение по одному критерию.
+  const toggleTemplateHide = useCallback((roomId: number, criterion: keyof HideFlags) => {
+    setTemplateHidesByRoom((prev) => {
+      const next = new Map(prev);
+      const cur = next.get(roomId) ?? { noAccess: false, withAccess: false };
+      const updated = { ...cur, [criterion]: !cur[criterion] };
+      if (!updated.noAccess && !updated.withAccess) next.delete(roomId);
+      else next.set(roomId, updated);
+      return next;
+    });
+  }, []);
 
   const clearHidden = useCallback(() => {
-    setHiddenRoomIds(new Set());
-    setHiddenTemplateIds(new Set());
-    setTemplatesDrivingHide(new Set());
-    setRoomsDrivingHide(new Set());
+    setRoomHidesByTemplate(new Map());
+    setTemplateHidesByRoom(new Map());
   }, []);
 
   const togglePin = useCallback((id: number) => {
@@ -204,23 +209,42 @@ export function App() {
   const menuItems: MenuItem[] = useMemo(() => {
     if (!menu) return [];
     if (menu.kind === "template") {
+      const f = roomHidesByTemplate.get(menu.id);
       return [
         { label: pinnedSet.has(menu.id) ? "Открепить" : "Закрепить слева", onClick: () => togglePin(menu.id) },
-        { label: "Скрыть помещения без доступа в этом шаблоне", divider: true, onClick: () => setRoomsHiddenForTemplate(menu.id, false, true) },
-        { label: "Скрыть помещения с доступом в этом шаблоне", onClick: () => setRoomsHiddenForTemplate(menu.id, true, true) },
-        { label: "Показать помещения без доступа в этом шаблоне", divider: true, onClick: () => setRoomsHiddenForTemplate(menu.id, false, false) },
-        { label: "Показать помещения с доступом в этом шаблоне", onClick: () => setRoomsHiddenForTemplate(menu.id, true, false) },
+        {
+          label: f?.noAccess
+            ? "Показать помещения без доступа в этом шаблоне"
+            : "Скрыть помещения без доступа в этом шаблоне",
+          divider: true,
+          onClick: () => toggleRoomHide(menu.id, "noAccess"),
+        },
+        {
+          label: f?.withAccess
+            ? "Показать помещения с доступом в этом шаблоне"
+            : "Скрыть помещения с доступом в этом шаблоне",
+          onClick: () => toggleRoomHide(menu.id, "withAccess"),
+        },
       ];
     }
+    const f = templateHidesByRoom.get(menu.id);
     return [
-      { label: "Скрыть шаблоны без доступа в это помещение", onClick: () => setTemplatesHiddenForRoom(menu.id, false, true) },
-      { label: "Скрыть шаблоны с доступом в это помещение", onClick: () => setTemplatesHiddenForRoom(menu.id, true, true) },
-      { label: "Показать шаблоны без доступа в это помещение", divider: true, onClick: () => setTemplatesHiddenForRoom(menu.id, false, false) },
-      { label: "Показать шаблоны с доступом в это помещение", onClick: () => setTemplatesHiddenForRoom(menu.id, true, false) },
+      {
+        label: f?.noAccess
+          ? "Показать шаблоны без доступа в это помещение"
+          : "Скрыть шаблоны без доступа в это помещение",
+        onClick: () => toggleTemplateHide(menu.id, "noAccess"),
+      },
+      {
+        label: f?.withAccess
+          ? "Показать шаблоны с доступом в это помещение"
+          : "Скрыть шаблоны с доступом в это помещение",
+        onClick: () => toggleTemplateHide(menu.id, "withAccess"),
+      },
     ];
-  }, [menu, pinnedSet, togglePin, setRoomsHiddenForTemplate, setTemplatesHiddenForRoom]);
+  }, [menu, pinnedSet, togglePin, toggleRoomHide, toggleTemplateHide, roomHidesByTemplate, templateHidesByRoom]);
 
-  const hasHidden = hiddenRoomIds.size > 0 || hiddenTemplateIds.size > 0;
+  const hasHidden = roomHidesByTemplate.size > 0 || templateHidesByRoom.size > 0;
   const isEmpty = !loading && !error && allRooms.length === 0 && templates.length === 0;
 
   return (
@@ -291,8 +315,8 @@ export function App() {
             collapsed={collapsed}
             highlightedTemplates={highlightMode && matches ? matches.templateIds : undefined}
             highlightedRooms={highlightMode && matches ? matches.roomIds : undefined}
-            markedTemplates={templatesDrivingHide}
-            markedRooms={roomsDrivingHide}
+            markedTemplates={roomHidesByTemplate}
+            markedRooms={templateHidesByRoom}
             onToggle={toggle}
             onHover={setHover}
             onTemplateContext={(id, x, y) => setMenu({ kind: "template", id, x, y })}

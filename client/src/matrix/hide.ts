@@ -1,6 +1,14 @@
 // Логика скрытия столбцов/строк по критериям (контекстные меню).
 import type { MatrixCell, Room } from "@perco/shared";
 
+/** Какие критерии скрытия активны через данный источник (шаблон/помещение). */
+export interface HideFlags {
+  /** скрыты элементы БЕЗ доступа */
+  noAccess: boolean;
+  /** скрыты элементы С доступом */
+  withAccess: boolean;
+}
+
 /** roomId помещений, в которые шаблон даёт доступ. */
 export function roomIdsWithAccessInTemplate(cells: MatrixCell[], templateId: number): Set<number> {
   const s = new Set<number>();
