@@ -55,12 +55,17 @@ export async function registerSecurity(app: FastifyInstance, config: AppConfig):
 
   // Гейт: защищаем /api/* (кроме auth и health). Статический шелл публичен —
   // данные он всё равно не получит без авторизации.
-  app.addHook("onRequest", async (req, reply) => {
+  //
+  // ВАЖНО: решение принимаем по СОПОСТАВЛЕННОМУ маршруту (req.routeOptions.url),
+  // а НЕ по сырому req.url. Иначе URL-кодирование обходит проверку: роутер
+  // декодирует «/%61pi/state/matrix» → «/api/state/matrix», а строковая проверка
+  // сырого пути этого не видит. Поэтому хук — preHandler (после маршрутизации).
+  app.addHook("preHandler", async (req, reply) => {
     if (!authRequired) return;
-    const path = req.url.split("?")[0] ?? "";
-    if (!path.startsWith("/api/")) return;
-    if (path.startsWith("/api/auth/")) return;
-    if (path === "/api/health") return;
+    const route = req.routeOptions?.url ?? ""; // зарегистрированный шаблон маршрута
+    if (!route.startsWith("/api/")) return; // статика / не-API
+    if (route.startsWith("/api/auth/")) return; // вход/выход/статус
+    if (route === "/api/health") return;
     if (isAuthed(req)) return;
     await reply.code(401).send({ error: "Не авторизовано" });
   });

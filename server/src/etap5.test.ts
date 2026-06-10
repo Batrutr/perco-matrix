@@ -67,6 +67,16 @@ test("с паролем: 401 без сессии, 401 на неверный па
   await app.close();
 });
 
+test("гейт нельзя обойти URL-кодированием пути (/%61pi → /api)", async () => {
+  const app = await buildApp({ config: cfg("secret"), ...deps(), logger: false, serveStatic: false });
+  // роутер декодирует %61→a и направит в /api/state/matrix — авторизация обязана сработать
+  const encoded = await app.inject({ method: "GET", url: "/%61pi/state/matrix" });
+  assert.equal(encoded.statusCode, 401);
+  const encodedRefresh = await app.inject({ method: "POST", url: "/%61pi/refresh/all" });
+  assert.equal(encodedRefresh.statusCode, 401);
+  await app.close();
+});
+
 test("status и health доступны без авторизации", async () => {
   const app = await buildApp({ config: cfg("secret"), ...deps(), logger: false, serveStatic: false });
   const status = await app.inject({ method: "GET", url: "/api/auth/status" });
