@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { MatrixResponse } from "@perco/shared";
+import type { MatrixResponse, Template } from "@perco/shared";
 import { fetchMatrix } from "./api/client.js";
 import { useRefresh } from "./hooks/useRefresh.js";
 import { annotateRooms, buildCellIndex, computeVisibleRooms } from "./matrix/model.js";
@@ -48,6 +48,7 @@ export function App() {
   // «Источники» скрытия — для пометки в сетке (через какой шаблон/помещение что-то скрыто)
   const [templatesDrivingHide, setTemplatesDrivingHide] = useState<ReadonlySet<number>>(new Set());
   const [roomsDrivingHide, setRoomsDrivingHide] = useState<ReadonlySet<number>>(new Set());
+  const [pinnedTemplateIds, setPinnedTemplateIds] = useState<number[]>([]);
   const [menu, setMenu] = useState<Menu | null>(null);
 
   const load = useCallback(() => {
@@ -113,6 +114,22 @@ export function App() {
     if (hiddenTemplateIds.size) list = list.filter((t) => !hiddenTemplateIds.has(t.id));
     return list;
   }, [templates, sortKey, sortDir, templateQuery, filterMode, matches, hiddenTemplateIds]);
+
+  // Закрепление: закреплённые шаблоны показываются слева (всегда видимы, не зависят
+  // от сортировки/фильтра), остальные — прокручиваемые.
+  const pinnedSet = useMemo(() => new Set(pinnedTemplateIds), [pinnedTemplateIds]);
+  const pinnedTemplates = useMemo(
+    () =>
+      pinnedTemplateIds
+        .map((id) => templates.find((t) => t.id === id))
+        .filter((t): t is Template => Boolean(t)),
+    [pinnedTemplateIds, templates],
+  );
+  const scrollTemplates = useMemo(
+    () => displayedTemplates.filter((t) => !pinnedSet.has(t.id)),
+    [displayedTemplates, pinnedSet],
+  );
+  const shownTemplateCount = scrollTemplates.length + pinnedTemplates.length;
 
   const toggle = useCallback((id: number) => {
     setCollapsed((prev) => {
@@ -180,11 +197,16 @@ export function App() {
     setRoomsDrivingHide(new Set());
   }, []);
 
+  const togglePin = useCallback((id: number) => {
+    setPinnedTemplateIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+
   const menuItems: MenuItem[] = useMemo(() => {
     if (!menu) return [];
     if (menu.kind === "template") {
       return [
-        { label: "Скрыть помещения без доступа в этом шаблоне", onClick: () => setRoomsHiddenForTemplate(menu.id, false, true) },
+        { label: pinnedSet.has(menu.id) ? "Открепить" : "Закрепить слева", onClick: () => togglePin(menu.id) },
+        { label: "Скрыть помещения без доступа в этом шаблоне", divider: true, onClick: () => setRoomsHiddenForTemplate(menu.id, false, true) },
         { label: "Скрыть помещения с доступом в этом шаблоне", onClick: () => setRoomsHiddenForTemplate(menu.id, true, true) },
         { label: "Показать помещения без доступа в этом шаблоне", divider: true, onClick: () => setRoomsHiddenForTemplate(menu.id, false, false) },
         { label: "Показать помещения с доступом в этом шаблоне", onClick: () => setRoomsHiddenForTemplate(menu.id, true, false) },
@@ -196,7 +218,7 @@ export function App() {
       { label: "Показать шаблоны без доступа в это помещение", divider: true, onClick: () => setTemplatesHiddenForRoom(menu.id, false, false) },
       { label: "Показать шаблоны с доступом в это помещение", onClick: () => setTemplatesHiddenForRoom(menu.id, true, false) },
     ];
-  }, [menu, setRoomsHiddenForTemplate, setTemplatesHiddenForRoom]);
+  }, [menu, pinnedSet, togglePin, setRoomsHiddenForTemplate, setTemplatesHiddenForRoom]);
 
   const hasHidden = hiddenRoomIds.size > 0 || hiddenTemplateIds.size > 0;
   const isEmpty = !loading && !error && allRooms.length === 0 && templates.length === 0;
@@ -238,7 +260,7 @@ export function App() {
         />
         {data && (
           <span className="app-counts">
-            показано: шаблонов {displayedTemplates.length} / {templates.length}, помещений{" "}
+            показано: шаблонов {shownTemplateCount} / {templates.length}, помещений{" "}
             {visibleRooms.length} / {allRooms.length}
           </span>
         )}
@@ -263,7 +285,8 @@ export function App() {
         {!error && data && (allRooms.length > 0 || templates.length > 0) && (
           <MatrixGrid
             rooms={visibleRooms}
-            templates={displayedTemplates}
+            templates={scrollTemplates}
+            pinnedTemplates={pinnedTemplates}
             cellIndex={cellIndex}
             collapsed={collapsed}
             highlightedTemplates={highlightMode && matches ? matches.templateIds : undefined}

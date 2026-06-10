@@ -1,6 +1,7 @@
-// Виртуализированная сетка матрицы: строки (помещения) и столбцы (шаблоны)
-// виртуализируются по обеим осям; шапка и первый столбец зафиксированы (sticky).
-import { useRef, useState } from "react";
+// Виртуализированная сетка матрицы: строки (помещения) и столбцы (шаблоны).
+// Шапка и первый столбец зафиксированы (sticky). Закреплённые шаблоны — это
+// дополнительные sticky-столбцы слева (не прокручиваются по горизонтали).
+import { useRef, useState, type CSSProperties } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { MatrixCell, Template } from "@perco/shared";
 import { cellKey, cellText, describeCell, type RoomRow } from "./model.js";
@@ -19,14 +20,13 @@ export interface HoverInfo {
 
 interface Props {
   rooms: RoomRow[]; // уже видимые (с учётом сворачивания)
-  templates: Template[];
+  templates: Template[]; // прокручиваемые столбцы (без закреплённых)
+  pinnedTemplates?: Template[]; // закреплённые слева
   cellIndex: Map<string, MatrixCell>;
   collapsed: ReadonlySet<number>;
   highlightedTemplates?: ReadonlySet<number>;
   highlightedRooms?: ReadonlySet<number>;
-  /** Шаблоны, через которые сейчас что-то скрыто (метка в шапке) */
   markedTemplates?: ReadonlySet<number>;
-  /** Помещения, через которые сейчас что-то скрыто (метка у ярлыка) */
   markedRooms?: ReadonlySet<number>;
   onToggle: (roomId: number) => void;
   onHover?: (info: HoverInfo | null) => void;
@@ -37,6 +37,7 @@ interface Props {
 export function MatrixGrid({
   rooms,
   templates,
+  pinnedTemplates = [],
   cellIndex,
   collapsed,
   highlightedTemplates,
@@ -49,7 +50,7 @@ export function MatrixGrid({
   onRoomContext,
 }: Props) {
   const parentRef = useRef<HTMLDivElement>(null);
-  const [hover, setHover] = useState<{ row: number; col: number } | null>(null);
+  const [hover, setHover] = useState<{ row: number; templateId: number } | null>(null);
 
   const rowV = useVirtualizer({
     count: rooms.length,
@@ -67,20 +68,95 @@ export function MatrixGrid({
 
   const rowItems = rowV.getVirtualItems();
   const colItems = colV.getVirtualItems();
-  const contentW = LABEL_W + colV.getTotalSize();
+  const pinnedW = pinnedTemplates.length * COL_W;
+  const contentW = LABEL_W + pinnedW + colV.getTotalSize();
 
-  const setHovered = (h: { row: number; col: number } | null, info: HoverInfo | null): void => {
+  const setHovered = (h: { row: number; templateId: number } | null, info: HoverInfo | null) => {
     setHover(h);
     onHover?.(info);
   };
 
+  const ctxHandler = (templateId: number) =>
+    onTemplateContext
+      ? (e: React.MouseEvent) => {
+          e.preventDefault();
+          onTemplateContext(templateId, e.clientX, e.clientY);
+        }
+      : undefined;
+
+  const headerCell = (t: Template, style: CSSProperties, pinned: boolean) => {
+    const hot = hover?.templateId === t.id;
+    const dim = highlightedTemplates && !highlightedTemplates.has(t.id);
+    const marked = markedTemplates?.has(t.id);
+    return (
+      <div
+        key={pinned ? `p${t.id}` : t.id}
+        className={`mx-th${pinned ? " pinned" : ""}${hot ? " hot" : ""}${dim ? " dim" : ""}${marked ? " marked" : ""}`}
+        style={style}
+        title={t.comment ? `${t.name} — ${t.comment}` : t.name}
+        onContextMenu={ctxHandler(t.id)}
+      >
+        {pinned && (
+          <span className="mx-pinmark" title="Закреплён (ПКМ → Открепить)">
+            📌
+          </span>
+        )}
+        {marked && (
+          <span className="mx-hidemark" title="Через этот шаблон скрыты помещения (ПКМ → Показать)">
+            ⊘
+          </span>
+        )}
+        <span className="mx-th-text">{t.name}</span>
+        <span className="mx-th-counts">
+          <span className="c-rooms" title={`Помещений: ${t.roomCount}`}>
+            {t.roomCount}
+          </span>
+          <span className="c-emp" title="Сотрудников">
+            {t.employeeCount ?? "–"}
+          </span>
+        </span>
+      </div>
+    );
+  };
+
+  const bodyCell = (
+    t: Template,
+    r: RoomRow,
+    rowIndex: number,
+    rowHot: boolean,
+    style: CSSProperties,
+    pinned: boolean,
+  ) => {
+    const cell = cellIndex.get(cellKey(t.id, r.roomId));
+    const hot = hover?.templateId === t.id || rowHot;
+    return (
+      <div
+        key={pinned ? `p${t.id}` : t.id}
+        className={`mx-cell${pinned ? " pinned" : ""}${cell ? " filled" : ""}${hot ? " hot" : ""}`}
+        style={style}
+        title={cell ? describeCell(cell, t, r) : ""}
+        onMouseEnter={() =>
+          setHovered({ row: rowIndex, templateId: t.id }, { template: t, room: r, cell })
+        }
+      >
+        {cell ? (
+          <>
+            <span className="mx-cell-text">{cellText(cell)}</span>
+            {(cell.isGuard || cell.isAntipass) && (
+              <span className="mx-badges">
+                {cell.isGuard && <i className="mx-badge g" title="Охрана" />}
+                {cell.isAntipass && <i className="mx-badge a" title="Antipass" />}
+              </span>
+            )}
+          </>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
-    <div
-      ref={parentRef}
-      className="mx-scroll"
-      onMouseLeave={() => setHovered(null, null)}
-    >
-      {/* Шапка: названия шаблонов (sticky top), угол (sticky top+left) */}
+    <div ref={parentRef} className="mx-scroll" onMouseLeave={() => setHovered(null, null)}>
+      {/* Шапка */}
       <div className="mx-header" style={{ width: contentW, height: HEADER_H }}>
         <div className="mx-corner" style={{ width: LABEL_W, height: HEADER_H }}>
           <span className="mx-corner-title">Помещения \ Шаблоны</span>
@@ -89,43 +165,20 @@ export function MatrixGrid({
             <span className="c-emp">сотрудников</span>
           </span>
         </div>
-        {colItems.map((col) => {
-          const t = templates[col.index]!;
-          const hot = hover?.col === col.index;
-          const dim = highlightedTemplates && !highlightedTemplates.has(t.id);
-          const marked = markedTemplates?.has(t.id);
-          return (
-            <div
-              key={col.key}
-              className={`mx-th${hot ? " hot" : ""}${dim ? " dim" : ""}${marked ? " marked" : ""}`}
-              style={{ left: LABEL_W + col.start, width: COL_W, height: HEADER_H }}
-              title={t.comment ? `${t.name} — ${t.comment}` : t.name}
-              onContextMenu={
-                onTemplateContext
-                  ? (e) => {
-                      e.preventDefault();
-                      onTemplateContext(t.id, e.clientX, e.clientY);
-                    }
-                  : undefined
-              }
-            >
-              {marked && (
-                <span className="mx-hidemark" title="Через этот шаблон скрыты помещения (ПКМ → Показать)">
-                  ⊘
-                </span>
-              )}
-              <span className="mx-th-text">{t.name}</span>
-              <span className="mx-th-counts">
-                <span className="c-rooms" title={`Помещений: ${t.roomCount}`}>
-                  {t.roomCount}
-                </span>
-                <span className="c-emp" title="Сотрудников">
-                  {t.employeeCount ?? "–"}
-                </span>
-              </span>
-            </div>
-          );
-        })}
+        {pinnedTemplates.map((t, i) =>
+          headerCell(
+            t,
+            { position: "sticky", left: LABEL_W + i * COL_W, width: COL_W, height: HEADER_H, zIndex: 5 },
+            true,
+          ),
+        )}
+        {colItems.map((col) =>
+          headerCell(
+            templates[col.index]!,
+            { position: "absolute", left: LABEL_W + pinnedW + col.start, width: COL_W, height: HEADER_H },
+            false,
+          ),
+        )}
       </div>
 
       {/* Тело */}
@@ -173,34 +226,26 @@ export function MatrixGrid({
                   </span>
                 )}
               </div>
-              {colItems.map((col) => {
-                const t = templates[col.index]!;
-                const cell = cellIndex.get(cellKey(t.id, r.roomId));
-                const hot = hover?.col === col.index || rowHot;
-                return (
-                  <div
-                    key={col.key}
-                    className={`mx-cell${cell ? " filled" : ""}${hot ? " hot" : ""}`}
-                    style={{ left: LABEL_W + col.start, width: COL_W, height: ROW_H }}
-                    title={cell ? describeCell(cell, t, r) : ""}
-                    onMouseEnter={() =>
-                      setHovered({ row: row.index, col: col.index }, { template: t, room: r, cell })
-                    }
-                  >
-                    {cell ? (
-                      <>
-                        <span className="mx-cell-text">{cellText(cell)}</span>
-                        {(cell.isGuard || cell.isAntipass) && (
-                          <span className="mx-badges">
-                            {cell.isGuard && <i className="mx-badge g" title="Охрана" />}
-                            {cell.isAntipass && <i className="mx-badge a" title="Antipass" />}
-                          </span>
-                        )}
-                      </>
-                    ) : null}
-                  </div>
-                );
-              })}
+              {pinnedTemplates.map((t, i) =>
+                bodyCell(
+                  t,
+                  r,
+                  row.index,
+                  !!rowHot,
+                  { position: "sticky", left: LABEL_W + i * COL_W, width: COL_W, height: ROW_H, zIndex: 1 },
+                  true,
+                ),
+              )}
+              {colItems.map((col) =>
+                bodyCell(
+                  templates[col.index]!,
+                  r,
+                  row.index,
+                  !!rowHot,
+                  { position: "absolute", left: LABEL_W + pinnedW + col.start, width: COL_W, height: ROW_H },
+                  false,
+                ),
+              )}
             </div>
           );
         })}

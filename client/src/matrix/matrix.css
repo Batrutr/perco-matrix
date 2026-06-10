@@ -13,6 +13,7 @@
   position: sticky;
   top: 0;
   z-index: 4;
+  display: flex; /* угол + закреплённые столбцы — в потоке слева направо */
 }
 
 .mx-corner {
@@ -20,6 +21,7 @@
   left: 0;
   top: 0;
   z-index: 6;
+  flex: none;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -138,6 +140,16 @@
   box-shadow: inset 2px 0 0 var(--mx-mark, #e65100);
 }
 
+/* Метка закреплённого шаблона */
+.mx-th .mx-pinmark {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  z-index: 1;
+  font-size: 10px;
+  line-height: 1;
+}
+
 /* --- Тело --- */
 .mx-body {
   position: relative;
@@ -146,6 +158,7 @@
 .mx-row {
   position: absolute;
   left: 0;
+  display: flex; /* ярлык + закреплённые ячейки — в потоке слева */
 }
 .mx-row.hot .mx-cell,
 .mx-row.hot .mx-label {
@@ -156,6 +169,7 @@
   position: sticky;
   left: 0;
   z-index: 2;
+  flex: none;
   display: flex;
   align-items: stretch;
   padding-left: 4px;
@@ -220,6 +234,21 @@
   border-right: 1px solid var(--mx-border, #8881);
   border-bottom: 1px solid var(--mx-border, #8881);
   overflow: hidden;
+}
+/* Закреплённые столбцы — sticky-элементы слева; непрозрачный фон, чтобы
+   прокручиваемые ячейки уходили под них. Порядок правил важен: pinned → filled → hot. */
+.mx-th.pinned,
+.mx-cell.pinned {
+  flex: none;
+}
+.mx-cell.pinned {
+  background: var(--mx-bg, #fff);
+}
+.mx-th.pinned {
+  border-right: 2px solid var(--mx-border, #8884);
+}
+.mx-cell.pinned {
+  border-right: 2px solid var(--mx-border, #8884);
 }
 .mx-cell.filled {
   background: var(--mx-filled, #e8f5e9);
