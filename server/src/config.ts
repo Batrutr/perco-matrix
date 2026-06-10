@@ -21,6 +21,14 @@ function bool(value: string | undefined, fallback: boolean): boolean {
   return !/^(0|false|no)$/i.test(value.trim());
 }
 
+/** Положительное целое из env; при пустом/нечисловом значении — fallback. */
+function posInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : fallback;
+}
+
 /** Секрет cookie: детерминированный из пароля (сессии переживают рестарт) или случайный. */
 function deriveCookieSecret(appPassword: string): string {
   if (process.env.APP_COOKIE_SECRET) return process.env.APP_COOKIE_SECRET;
@@ -69,13 +77,13 @@ export function loadConfig(): AppConfig {
       host: normalizeHost(required("PERCO_HOST", "https://perco.example.local")),
       login: required("PERCO_LOGIN", "admin"),
       password: required("PERCO_PASSWORD", "changeme"),
-      concurrency: Number(process.env.PERCO_CONCURRENCY ?? "8"),
+      concurrency: posInt("PERCO_CONCURRENCY", 8),
       tlsRejectUnauthorized: bool(process.env.PERCO_TLS_REJECT_UNAUTHORIZED, true),
     },
     percoDb: process.env.PERCO_DB_HOST
       ? {
           host: process.env.PERCO_DB_HOST,
-          port: Number(process.env.PERCO_DB_PORT ?? "3306"),
+          port: posInt("PERCO_DB_PORT", 3306),
           database: required("PERCO_DB_NAME"),
           user: required("PERCO_DB_USER"),
           password: process.env.PERCO_DB_PASSWORD ?? "",
@@ -83,7 +91,7 @@ export function loadConfig(): AppConfig {
       : null,
     server: {
       host: process.env.HOST ?? "0.0.0.0",
-      port: Number(process.env.PORT ?? "3000"),
+      port: posInt("PORT", 3000),
     },
     dbPath: process.env.DB_PATH ?? "./data/perco.sqlite",
     appPassword,

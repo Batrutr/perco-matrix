@@ -17,7 +17,10 @@ export async function runWithConcurrency<T, R>(
   let nextIndex = 0;
   let done = 0;
 
-  const effectiveLimit = Math.max(1, Math.min(limit, total));
+  // Защита от мусорного limit (NaN/0/отрицательного): иначе Array.from({length:NaN})
+  // даст пустой пул и НИ ОДИН worker не запустится (тихий сбой N+1).
+  const safeLimit = Number.isFinite(limit) && limit >= 1 ? Math.floor(limit) : 1;
+  const effectiveLimit = Math.max(1, Math.min(safeLimit, total));
 
   async function runner(): Promise<void> {
     while (true) {

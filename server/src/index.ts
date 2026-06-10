@@ -29,6 +29,25 @@ async function main() {
 
   const app = await buildApp({ config, db, refresh });
   await app.listen({ host: config.server.host, port: config.server.port });
+
+  // Корректное завершение: закрыть сервер, пул БД PERCo и SQLite.
+  let shuttingDown = false;
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    app.log.info(`Получен ${signal}, завершаюсь…`);
+    try {
+      await app.close();
+      if (percoDb) await percoDb.close();
+      db.close();
+    } catch (err) {
+      app.log.error(err);
+    } finally {
+      process.exit(0);
+    }
+  };
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 }
 
 main().catch((err) => {
