@@ -66,6 +66,28 @@
   color: crimson;
 }
 
+/* --- Панель поиска/сортировки --- */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.search-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.search-field input,
+.search-field select {
+  font-size: 12px;
+  padding: 3px 6px;
+}
+.search-field input[type="search"] {
+  width: 160px;
+}
+
 /* --- Тулбар фильтра --- */
 .app-toolbar {
   flex: none;

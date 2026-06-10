@@ -10,9 +10,18 @@ import {
   uniqueSchedules,
   type FilterState,
 } from "./matrix/filter.js";
+import {
+  intersect,
+  nameMatches,
+  roomIdsMatchingName,
+  sortTemplates,
+  type SortDir,
+  type SortKey,
+} from "./matrix/search.js";
 import { MatrixGrid, type HoverInfo } from "./matrix/MatrixGrid.js";
 import { RefreshBar } from "./components/RefreshBar.js";
 import { FilterPanel } from "./components/FilterPanel.js";
+import { SearchSortBar } from "./components/SearchSortBar.js";
 import "./App.css";
 
 export function App() {
@@ -22,6 +31,10 @@ export function App() {
   const [collapsed, setCollapsed] = useState<ReadonlySet<number>>(new Set());
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
+  const [templateQuery, setTemplateQuery] = useState("");
+  const [roomQuery, setRoomQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -48,20 +61,32 @@ export function App() {
   const filterMode = filter.active && filter.mode === "filter";
   const highlightMode = filter.active && filter.mode === "highlight";
 
-  const keep = useMemo(
-    () => (filterMode && matches && data ? roomsWithAncestors(data.rooms, matches.roomIds) : undefined),
-    [filterMode, matches, data],
-  );
+  // Строки: совмещаем поиск по помещению и фильтр-скрытие (пересечение совпавших
+  // roomId), затем добавляем предков и применяем сворачивание.
+  const roomKeep = useMemo(() => {
+    if (!data) return undefined;
+    let matchedRoomIds: Set<number> | null = null;
+    if (roomQuery.trim()) matchedRoomIds = roomIdsMatchingName(data.rooms, roomQuery);
+    if (filterMode && matches) {
+      matchedRoomIds = matchedRoomIds ? intersect(matchedRoomIds, matches.roomIds) : matches.roomIds;
+    }
+    return matchedRoomIds ? roomsWithAncestors(data.rooms, matchedRoomIds) : undefined;
+  }, [data, roomQuery, filterMode, matches]);
+
   const visibleRooms = useMemo(
-    () => computeVisibleRooms(allRooms, collapsed, keep),
-    [allRooms, collapsed, keep],
+    () => computeVisibleRooms(allRooms, collapsed, roomKeep),
+    [allRooms, collapsed, roomKeep],
   );
 
-  const templates = data?.templates ?? [];
-  const displayedTemplates = useMemo(
-    () => (filterMode && matches ? templates.filter((t) => matches.templateIds.has(t.id)) : templates),
-    [filterMode, matches, templates],
-  );
+  const templates = useMemo(() => data?.templates ?? [], [data]);
+
+  // Столбцы: сортировка → поиск по имени → фильтр-скрытие по значению.
+  const displayedTemplates = useMemo(() => {
+    let list = sortTemplates(templates, sortKey, sortDir);
+    if (templateQuery.trim()) list = list.filter((t) => nameMatches(t.name, templateQuery));
+    if (filterMode && matches) list = list.filter((t) => matches.templateIds.has(t.id));
+    return list;
+  }, [templates, sortKey, sortDir, templateQuery, filterMode, matches]);
 
   const toggle = useCallback((id: number) => {
     setCollapsed((prev) => {
@@ -86,6 +111,21 @@ export function App() {
           onRefresh={refresh.trigger}
         />
       </header>
+
+      <div className="app-toolbar">
+        <SearchSortBar
+          templateQuery={templateQuery}
+          roomQuery={roomQuery}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onTemplateQuery={setTemplateQuery}
+          onRoomQuery={setRoomQuery}
+          onSort={(key, dir) => {
+            setSortKey(key);
+            setSortDir(dir);
+          }}
+        />
+      </div>
 
       <div className="app-toolbar">
         <FilterPanel
