@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { MatrixCell, Room } from "@perco/shared";
 import {
+  combineHidden,
   roomIdsWithAccessInTemplate,
   roomsVisibleAfterHiding,
   templateIdsWithAccessInRoom,
@@ -35,6 +36,17 @@ function cell(templateId: number, roomId: number): MatrixCell {
 }
 
 const CELLS = [cell(10, 2), cell(10, 3), cell(20, 4)];
+
+test("combineHidden: all=объединение скрытого, any=пересечение скрытого", () => {
+  const a = new Set([1, 2, 3]);
+  const b = new Set([3, 4, 5]);
+  // 0/1 источника — режим не влияет
+  assert.equal(combineHidden([], "all").size, 0);
+  assert.deepEqual([...combineHidden([a], "any")].sort((x, y) => x - y), [1, 2, 3]);
+  // all → скрыто объединение {1..5}; any → скрыто пересечение {3}
+  assert.deepEqual([...combineHidden([a, b], "all")].sort((x, y) => x - y), [1, 2, 3, 4, 5]);
+  assert.deepEqual([...combineHidden([a, b], "any")], [3]);
+});
 
 test("roomIdsWithAccessInTemplate / templateIdsWithAccessInRoom", () => {
   assert.deepEqual([...roomIdsWithAccessInTemplate(CELLS, 10)].sort((a, b) => a - b), [2, 3]);

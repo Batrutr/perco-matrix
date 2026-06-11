@@ -1,5 +1,6 @@
 // Логика скрытия столбцов/строк по критериям (контекстные меню).
 import type { MatrixCell, Room } from "@perco/shared";
+import { intersect } from "./search.js";
 
 /** Какие критерии скрытия активны через данный источник (шаблон/помещение). */
 export interface HideFlags {
@@ -7,6 +8,27 @@ export interface HideFlags {
   noAccess: boolean;
   /** скрыты элементы С доступом */
   withAccess: boolean;
+}
+
+/**
+ * Как комбинировать скрытия от нескольких источников (по видимому результату):
+ *  - "all" (пересечение): видно то, что прошло ВСЕ скрытия → скрытое = объединение наборов
+ *  - "any" (объединение): видно то, что прошло хотя бы одно → скрытое = пересечение наборов
+ */
+export type CombineMode = "all" | "any";
+
+/** Свести наборы «что скрывает каждый источник» в итоговое множество скрытого. */
+export function combineHidden(sets: Set<number>[], mode: CombineMode): Set<number> {
+  if (sets.length === 0) return new Set();
+  if (sets.length === 1) return new Set(sets[0]);
+  if (mode === "all") {
+    const out = new Set<number>();
+    for (const s of sets) for (const x of s) out.add(x); // объединение скрытого
+    return out;
+  }
+  let acc = new Set(sets[0]); // пересечение скрытого
+  for (let i = 1; i < sets.length; i++) acc = intersect(acc, sets[i]!);
+  return acc;
 }
 
 /** roomId помещений, в которые шаблон даёт доступ. */

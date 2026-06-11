@@ -3,6 +3,7 @@ import type { MatrixResponse, Template } from "@perco/shared";
 import { fetchConfig, fetchMatrix } from "./api/client.js";
 import { useRefresh } from "./hooks/useRefresh.js";
 import { annotateRooms, buildCellIndex, computeVisibleRooms } from "./matrix/model.js";
+import { ANY_SPEC, findFullMatches, greedySetCover, specLabel, type CellSpec } from "./matrix/finder.js";
 import {
   computeMatches,
   EMPTY_FILTER,
@@ -20,9 +21,11 @@ import {
   type SortKey,
 } from "./matrix/search.js";
 import {
+  combineHidden,
   roomIdsWithAccessInTemplate,
   roomsVisibleAfterHiding,
   templateIdsWithAccessInRoom,
+  type CombineMode,
   type HideFlags,
 } from "./matrix/hide.js";
 import { MatrixGrid, type HoverInfo } from "./matrix/MatrixGrid.js";
@@ -30,6 +33,8 @@ import { RefreshBar } from "./components/RefreshBar.js";
 import { FilterPanel } from "./components/FilterPanel.js";
 import { SearchSortBar } from "./components/SearchSortBar.js";
 import { ContextMenu, type MenuItem } from "./components/ContextMenu.js";
+import { FinderPanel } from "./components/FinderPanel.js";
+import { SpecEditor } from "./components/SpecEditor.js";
 import "./App.css";
 
 type Menu = { kind: "template" | "room"; id: number; x: number; y: number };
@@ -55,9 +60,16 @@ export function App() {
   const [templateHidesByRoom, setTemplateHidesByRoom] = useState<ReadonlyMap<number, HideFlags>>(
     new Map(),
   );
+  // Как комбинировать скрытия от нескольких источников: "all" = пересечение видимого
+  // (по всем; как было), "any" = объединение (хотя бы по одному).
+  const [hideCombine, setHideCombine] = useState<CombineMode>("all");
   const [pinnedTemplateIds, setPinnedTemplateIds] = useState<number[]>([]);
   const [importantTemplates, setImportantTemplates] = useState<string[]>([]);
   const [menu, setMenu] = useState<Menu | null>(null);
+  // Режим подбора шаблона: требование (roomId → отметки) + позиция редактора отметок.
+  const [finder, setFinder] = useState(false);
+  const [requirement, setRequirement] = useState<ReadonlyMap<number, CellSpec>>(new Map());
+  const [specEditor, setSpecEditor] = useState<{ roomId: number; x: number; y: number } | null>(null);
 
   // Счётчик поколений: применяем результат только последнего запроса
   // (StrictMode-двойной вызов, повторные обновления, медленный старый ответ).
@@ -101,32 +113,37 @@ export function App() {
   const filterMode = filter.active && filter.mode === "filter";
   const highlightMode = filter.active && filter.mode === "highlight";
 
-  // Скрытые элементы — производные от карт скрытия (объединение по всем источникам/критериям).
+  // Скрытые элементы — производные от карт скрытия. Каждый источник даёт свой набор
+  // скрытого; наборы сводятся режимом hideCombine (пересечение/объединение видимого).
   const hiddenRoomIds = useMemo(() => {
-    const s = new Set<number>();
-    if (!data) return s;
+    if (!data || roomHidesByTemplate.size === 0) return new Set<number>();
+    const sets: Set<number>[] = [];
     for (const [templateId, flags] of roomHidesByTemplate) {
       const access = roomIdsWithAccessInTemplate(data.cells, templateId);
+      const s = new Set<number>();
       for (const r of data.rooms) {
         const has = access.has(r.roomId);
         if ((flags.noAccess && !has) || (flags.withAccess && has)) s.add(r.roomId);
       }
+      sets.push(s);
     }
-    return s;
-  }, [data, roomHidesByTemplate]);
+    return combineHidden(sets, hideCombine);
+  }, [data, roomHidesByTemplate, hideCombine]);
 
   const hiddenTemplateIds = useMemo(() => {
-    const s = new Set<number>();
-    if (!data) return s;
+    if (!data || templateHidesByRoom.size === 0) return new Set<number>();
+    const sets: Set<number>[] = [];
     for (const [roomId, flags] of templateHidesByRoom) {
       const access = templateIdsWithAccessInRoom(data.cells, roomId);
+      const s = new Set<number>();
       for (const t of data.templates) {
         const has = access.has(t.id);
         if ((flags.noAccess && !has) || (flags.withAccess && has)) s.add(t.id);
       }
+      sets.push(s);
     }
-    return s;
-  }, [data, templateHidesByRoom]);
+    return combineHidden(sets, hideCombine);
+  }, [data, templateHidesByRoom, hideCombine]);
 
   // Строки: совмещаем поиск по помещению и фильтр-скрытие (пересечение совпавших
   // roomId), затем добавляем предков и применяем сворачивание.
@@ -181,7 +198,6 @@ export function App() {
     () => displayedTemplates.filter((t) => !pinnedSet.has(t.id)),
     [displayedTemplates, pinnedSet],
   );
-  const shownTemplateCount = scrollTemplates.length + pinnedTemplates.length;
 
   const toggle = useCallback((id: number) => {
     setCollapsed((prev) => {
@@ -191,6 +207,23 @@ export function App() {
       return next;
     });
   }, []);
+
+  // Быстрое сворачивание дерева. level — сколько уровней показать (1 = только верхний):
+  // сворачиваем все узлы с детьми на глубине >= level-1, deeper скрываются.
+  const maxTreeDepth = useMemo(
+    () => allRooms.reduce((m, r) => Math.max(m, r.depth), 0),
+    [allRooms],
+  );
+  const collapseToLevel = useCallback(
+    (level: number) => {
+      const maxVisibleDepth = Math.max(0, level - 1);
+      const next = new Set<number>();
+      for (const r of allRooms) if (r.hasChildren && r.depth >= maxVisibleDepth) next.add(r.id);
+      setCollapsed(next);
+    },
+    [allRooms],
+  );
+  const expandAll = useCallback(() => setCollapsed(new Set()), []);
 
   // Тумблер скрытия помещений через шаблон по одному критерию (как закрепить/открепить).
   const toggleRoomHide = useCallback((templateId: number, criterion: keyof HideFlags) => {
@@ -234,6 +267,101 @@ export function App() {
     setPinnedTemplateIds((prev) => [...prev, ...importantIds.filter((id) => !prev.includes(id))]);
   }, [importantIds]);
   const unpinAll = useCallback(() => setPinnedTemplateIds([]), []);
+
+  // --- Режим подбора шаблона ---
+  const scheduleNameById = useMemo(
+    () => new Map(schedules.map((s) => [s.id, s.name])),
+    [schedules],
+  );
+  const roomNameById = useMemo(
+    () => new Map(allRooms.map((r) => [r.roomId, r.name || `#${r.roomId}`])),
+    [allRooms],
+  );
+  const templateById = useMemo(() => new Map(templates.map((t) => [t.id, t])), [templates]);
+
+  // Подписи чернового столбца «Требование»
+  const draftCells = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const [roomId, spec] of requirement) m.set(roomId, specLabel(spec, scheduleNameById));
+    return m;
+  }, [requirement, scheduleNameById]);
+
+  // Результат подбора: полные совпадения, иначе жадная комбинация
+  const finderResult = useMemo(() => {
+    if (!finder || requirement.size === 0) return null;
+    const fullIds = findFullMatches(templates, cellIndex, requirement);
+    if (fullIds.length > 0) return { fullIds, combination: null };
+    return { fullIds, combination: greedySetCover(templates, cellIndex, requirement) };
+  }, [finder, requirement, templates, cellIndex]);
+
+  const fullMatchTemplates = useMemo(
+    () => (finderResult?.fullIds ?? []).map((id) => templateById.get(id)).filter((t): t is Template => Boolean(t)),
+    [finderResult, templateById],
+  );
+  const combinationDisplay = useMemo(() => {
+    const combo = finderResult?.combination;
+    if (!combo) return null;
+    return combo.chosen
+      .map((c) => {
+        const template = templateById.get(c.templateId);
+        return template ? { template, covers: c.covers } : null;
+      })
+      .filter((x): x is { template: Template; covers: number[] } => Boolean(x));
+  }, [finderResult, templateById]);
+  const uncoveredNames = useMemo(
+    () => (finderResult?.combination?.uncovered ?? []).map((rid) => roomNameById.get(rid) ?? `#${rid}`),
+    [finderResult, roomNameById],
+  );
+  // Множество подходящих шаблонов (полные совпадения или участники комбинации)
+  const finderMatchIds = useMemo(() => {
+    if (!finderResult) return undefined;
+    const ids = finderResult.fullIds.length
+      ? finderResult.fullIds
+      : (finderResult.combination?.chosen ?? []).map((c) => c.templateId);
+    return new Set(ids);
+  }, [finderResult]);
+
+  // В режиме подбора показываем ТОЛЬКО подходящие шаблоны (неподходящие скрыты).
+  // Пока требование пусто (finderMatchIds undefined) — показываем все.
+  const gridPinned = useMemo(
+    () => (finder && finderMatchIds ? pinnedTemplates.filter((t) => finderMatchIds.has(t.id)) : pinnedTemplates),
+    [finder, finderMatchIds, pinnedTemplates],
+  );
+  const gridScroll = useMemo(
+    () => (finder && finderMatchIds ? scrollTemplates.filter((t) => finderMatchIds.has(t.id)) : scrollTemplates),
+    [finder, finderMatchIds, scrollTemplates],
+  );
+
+  // После обновления данных выбрасываем из требования (и из редактора) помещения,
+  // которых больше нет: иначе полное совпадение навсегда недостижимо, а убрать
+  // такую запись поштучно нельзя — её ячейка чернового столбца исчезла.
+  useEffect(() => {
+    if (!data) return;
+    const ids = new Set(data.rooms.map((r) => r.roomId));
+    setRequirement((prev) => {
+      if (![...prev.keys()].some((id) => !ids.has(id))) return prev;
+      const next = new Map<number, CellSpec>();
+      for (const [roomId, spec] of prev) if (ids.has(roomId)) next.set(roomId, spec);
+      return next;
+    });
+    setSpecEditor((prev) => (prev && !ids.has(prev.roomId) ? null : prev));
+  }, [data]);
+
+  const handleDraftCell = useCallback((roomId: number, x: number, y: number) => {
+    setRequirement((prev) => (prev.has(roomId) ? prev : new Map(prev).set(roomId, ANY_SPEC)));
+    setSpecEditor({ roomId, x, y });
+  }, []);
+  const updateSpec = useCallback((roomId: number, spec: CellSpec) => {
+    setRequirement((prev) => new Map(prev).set(roomId, spec));
+  }, []);
+  const removeSpec = useCallback((roomId: number) => {
+    setRequirement((prev) => {
+      const n = new Map(prev);
+      n.delete(roomId);
+      return n;
+    });
+    setSpecEditor(null);
+  }, []);
 
   const menuItems: MenuItem[] = useMemo(() => {
     if (!menu) return [];
@@ -316,8 +444,38 @@ export function App() {
               Открепить все ({pinnedTemplateIds.length})
             </button>
           )}
+          <button
+            className={finder ? "finder-toggle on" : "finder-toggle"}
+            onClick={() => {
+              setFinder((f) => !f);
+              setSpecEditor(null);
+            }}
+            title="Подбор шаблона по нужным отметкам в выбранных помещениях"
+          >
+            {finder ? "✕ Подбор" : "🔍 Подбор шаблона"}
+          </button>
         </div>
       </div>
+
+      {finder && (
+        <div className="app-toolbar">
+          <FinderPanel
+            selectedCount={requirement.size}
+            fullMatches={fullMatchTemplates}
+            combination={combinationDisplay}
+            uncoveredNames={uncoveredNames}
+            onPick={togglePin}
+            onClear={() => {
+              setRequirement(new Map());
+              setSpecEditor(null);
+            }}
+            onExit={() => {
+              setFinder(false);
+              setSpecEditor(null);
+            }}
+          />
+        </div>
+      )}
 
       <div className="app-toolbar">
         <FilterPanel
@@ -326,10 +484,45 @@ export function App() {
           matched={matches ? { templates: matches.templateIds.size, rooms: matches.roomIds.size } : null}
           onChange={setFilter}
         />
+        {data && allRooms.length > 0 && (
+          <div className="tree-controls">
+            <span className="tree-controls-label">Дерево:</span>
+            <button onClick={() => collapseToLevel(1)} title="Свернуть всё (только верхний уровень)">
+              свернуть всё
+            </button>
+            {Array.from({ length: Math.max(0, maxTreeDepth - 1) }, (_, i) => i + 2).map((lvl) => (
+              <button key={lvl} onClick={() => collapseToLevel(lvl)} title={`Показать дерево до ${lvl} уровней`}>
+                до ур. {lvl}
+              </button>
+            ))}
+            <button onClick={expandAll} title="Развернуть всё">
+              развернуть всё
+            </button>
+          </div>
+        )}
         {data && (
           <span className="app-counts">
-            показано: шаблонов {shownTemplateCount} / {templates.length}, помещений{" "}
+            показано: шаблонов {gridScroll.length + gridPinned.length} / {templates.length}, помещений{" "}
             {visibleRooms.length} / {allRooms.length}
+          </span>
+        )}
+        {(roomHidesByTemplate.size >= 2 || templateHidesByRoom.size >= 2) && (
+          <span className="combine-toggle" title="Как комбинировать несколько скрытий">
+            совмещать:
+            <button
+              className={hideCombine === "all" ? "on" : ""}
+              onClick={() => setHideCombine("all")}
+              title="Видно то, что прошло ВСЕ скрытия (пересечение)"
+            >
+              ∩ во всех
+            </button>
+            <button
+              className={hideCombine === "any" ? "on" : ""}
+              onClick={() => setHideCombine("any")}
+              title="Видно то, что прошло хотя бы одно скрытие (объединение)"
+            >
+              ∪ в любом
+            </button>
           </span>
         )}
         {hasHidden && (
@@ -353,11 +546,11 @@ export function App() {
         {!error && data && (allRooms.length > 0 || templates.length > 0) && (
           <MatrixGrid
             rooms={visibleRooms}
-            templates={scrollTemplates}
-            pinnedTemplates={pinnedTemplates}
+            templates={gridScroll}
+            pinnedTemplates={gridPinned}
             cellIndex={cellIndex}
             collapsed={collapsed}
-            highlightedTemplates={highlightMode && matches ? matches.templateIds : undefined}
+            highlightedTemplates={finder ? undefined : highlightMode && matches ? matches.templateIds : undefined}
             highlightedRooms={highlightMode && matches ? matches.roomIds : undefined}
             markedTemplates={roomHidesByTemplate}
             markedRooms={templateHidesByRoom}
@@ -365,12 +558,28 @@ export function App() {
             onHover={setHover}
             onTemplateContext={(id, x, y) => setMenu({ kind: "template", id, x, y })}
             onRoomContext={(id, x, y) => setMenu({ kind: "room", id, x, y })}
+            draftActive={finder}
+            draftCells={draftCells}
+            onDraftCell={handleDraftCell}
           />
         )}
       </div>
 
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />
+      )}
+
+      {finder && specEditor && (
+        <SpecEditor
+          x={specEditor.x}
+          y={specEditor.y}
+          roomName={roomNameById.get(specEditor.roomId) ?? `#${specEditor.roomId}`}
+          spec={requirement.get(specEditor.roomId) ?? ANY_SPEC}
+          schedules={schedules}
+          onChange={(s) => updateSpec(specEditor.roomId, s)}
+          onRemove={() => removeSpec(specEditor.roomId)}
+          onClose={() => setSpecEditor(null)}
+        />
       )}
 
       <footer className="app-info">
