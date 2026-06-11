@@ -1,406 +1,464 @@
 .app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
 }
 
 .app-top {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 16px;
-  border-bottom: 1px solid #8883;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 8px 16px;
+    border-bottom: 1px solid #8883;
 }
+
 .app-top h1 {
-  font-size: 18px;
-  margin: 0;
+    font-size: 18px;
+    margin: 0;
 }
+
 .app-meta {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  font-size: 12px;
-  color: #888;
-  flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 12px;
+    color: #888;
+    flex-wrap: wrap;
 }
+
 .app-meta button {
-  font-size: 12px;
-  padding: 4px 10px;
-  cursor: pointer;
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
 }
 
 /* --- Панель обновления --- */
 .refresh-bar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
 }
+
 .refresh-buttons {
-  display: flex;
-  gap: 8px;
+    display: flex;
+    gap: 8px;
 }
+
 .refresh-buttons button {
-  font-size: 12px;
-  padding: 5px 10px;
-  cursor: pointer;
+    font-size: 12px;
+    padding: 5px 10px;
+    cursor: pointer;
 }
+
 .refresh-buttons button.primary {
-  font-weight: 600;
+    font-weight: 600;
 }
+
 .refresh-buttons button:disabled {
-  cursor: default;
-  opacity: 0.6;
+    cursor: default;
+    opacity: 0.6;
 }
+
 .refresh-status {
-  font-size: 12px;
-  color: #888;
+    font-size: 12px;
+    color: #888;
 }
+
 .refresh-status .busy {
-  color: #1565c0;
+    color: #1565c0;
 }
+
 .refresh-status .err {
-  color: crimson;
+    color: crimson;
 }
 
 /* --- Панель поиска/сортировки --- */
 .search-bar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-size: 12px;
-  flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 12px;
+    flex-wrap: wrap;
 }
+
 .search-field {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
+
 .search-field input,
 .search-field select {
-  font-size: 12px;
-  padding: 3px 6px;
+    font-size: 12px;
+    padding: 3px 6px;
 }
+
 .search-field input[type="search"] {
-  width: 160px;
+    width: 160px;
 }
+
 .pin-controls {
-  display: inline-flex;
-  gap: 8px;
+    display: inline-flex;
+    gap: 8px;
 }
+
 .pin-controls button {
-  font-size: 12px;
-  padding: 4px 10px;
-  cursor: pointer;
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
 }
+
 .finder-toggle.on {
-  font-weight: 600;
-  background: #fff3e0;
+    font-weight: 600;
+    background: #fff3e0;
 }
 
 /* --- Панель подбора --- */
 .finder-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    font-size: 12px;
 }
+
 .finder-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
 }
+
 .finder-head button {
-  font-size: 12px;
-  padding: 3px 10px;
-  cursor: pointer;
+    font-size: 12px;
+    padding: 3px 10px;
+    cursor: pointer;
 }
+
 .finder-count {
-  color: #888;
+    color: #888;
 }
+
 .finder-hint {
-  color: #888;
-  max-width: 720px;
+    color: #888;
+    max-width: 720px;
 }
+
 .finder-results {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
+
 .finder-ok {
-  color: #2e7d32;
-  font-weight: 600;
+    color: #2e7d32;
+    font-weight: 600;
 }
+
 .finder-warn {
-  color: #e65100;
-  font-weight: 600;
+    color: #e65100;
+    font-weight: 600;
 }
+
 .finder-tpl {
-  font-size: 12px;
-  padding: 3px 8px;
-  cursor: pointer;
-  border: 1px solid #8884;
-  border-radius: 4px;
-  background: none;
-  color: inherit;
+    font-size: 12px;
+    padding: 3px 8px;
+    cursor: pointer;
+    border: 1px solid #8884;
+    border-radius: 4px;
+    background: none;
+    color: inherit;
 }
+
 .finder-tpl i {
-  color: #888;
-  font-style: normal;
+    color: #888;
+    font-style: normal;
 }
+
 .finder-uncovered {
-  color: crimson;
+    color: crimson;
 }
 
 /* --- Редактор отметок требования --- */
 .spec-editor {
-  position: fixed;
-  z-index: 1000;
-  min-width: 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: var(--ctx-bg, #fff);
-  border: 1px solid #8886;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px #0003;
-  font-size: 13px;
+    position: fixed;
+    z-index: 1000;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--ctx-bg, #fff);
+    border: 1px solid #8886;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px #0003;
+    font-size: 13px;
 }
+
 .spec-editor-title {
-  font-weight: 600;
+    font-weight: 600;
 }
+
 .spec-editor label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
 }
+
 .spec-editor select {
-  font-size: 13px;
+    font-size: 13px;
 }
+
 .spec-editor-actions {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 4px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 4px;
 }
+
 .spec-editor-actions button {
-  font-size: 12px;
-  padding: 4px 10px;
-  cursor: pointer;
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
 }
 
 @media (prefers-color-scheme: dark) {
-  .finder-toggle.on {
-    background: #3a2f1c;
-  }
-  .spec-editor {
-    --ctx-bg: #26262b;
-    border-color: #ffffff33;
-  }
+    .finder-toggle.on {
+        background: #3a2f1c;
+    }
+
+    .spec-editor {
+        --ctx-bg: #26262b;
+        border-color: #ffffff33;
+    }
 }
 
 /* --- Тулбар фильтра --- */
 .app-toolbar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 6px 16px;
-  border-bottom: 1px solid #8883;
-  flex-wrap: wrap;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 6px 16px;
+    border-bottom: 1px solid #8883;
+    flex-wrap: wrap;
 }
+
 .filter-panel {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 12px;
 }
+
 .filter-active {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 600;
-  cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+    cursor: pointer;
 }
+
 .filter-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  border: none;
-  margin: 0;
-  padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    border: none;
+    margin: 0;
+    padding: 0;
 }
+
 .filter-controls label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
+
 .filter-controls select {
-  font-size: 12px;
+    font-size: 12px;
 }
+
 .filter-controls:disabled {
-  opacity: 0.45;
+    opacity: 0.45;
 }
+
 .filter-matched {
-  color: #1565c0;
+    color: #1565c0;
 }
+
 .app-counts {
-  font-size: 12px;
-  color: #888;
+    font-size: 12px;
+    color: #888;
 }
 
 /* --- Быстрое сворачивание дерева --- */
 .tree-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
 }
+
 .tree-controls-label {
-  color: #888;
+    color: #888;
 }
+
 .tree-controls button {
-  font-size: 12px;
-  padding: 3px 8px;
-  cursor: pointer;
+    font-size: 12px;
+    padding: 3px 8px;
+    cursor: pointer;
 }
+
 .show-hidden {
-  font-size: 12px;
-  padding: 4px 10px;
-  cursor: pointer;
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
 }
+
 .combine-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #888;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #888;
 }
+
 .combine-toggle button {
-  font-size: 12px;
-  padding: 3px 8px;
-  cursor: pointer;
+    font-size: 12px;
+    padding: 3px 8px;
+    cursor: pointer;
 }
+
 .combine-toggle button.on {
-  font-weight: 700;
-  background: #dde6ff;
+    font-weight: 700;
+    background: #dde6ff;
 }
+
 @media (prefers-color-scheme: dark) {
-  .combine-toggle button.on {
-    background: #2d3b66;
-  }
+    .combine-toggle button.on {
+        background: #2d3b66;
+    }
 }
 
 /* --- Контекстное меню --- */
 .ctx-menu {
-  position: fixed;
-  z-index: 1000;
-  min-width: 240px;
-  padding: 4px;
-  background: var(--ctx-bg, #fff);
-  border: 1px solid #8886;
-  border-radius: 6px;
-  box-shadow: 0 4px 16px #0003;
+    position: fixed;
+    z-index: 1000;
+    min-width: 240px;
+    padding: 4px;
+    background: var(--ctx-bg, #fff);
+    border: 1px solid #8886;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px #0003;
 }
+
 .ctx-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 7px 10px;
-  font-size: 13px;
-  border: none;
-  background: none;
-  border-radius: 4px;
-  cursor: pointer;
-  color: inherit;
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 7px 10px;
+    font-size: 13px;
+    border: none;
+    background: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: inherit;
 }
+
 .ctx-item:hover {
-  background: var(--ctx-hover, #e8eefc);
+    background: var(--ctx-hover, #e8eefc);
 }
+
 .ctx-sep {
-  height: 1px;
-  margin: 4px 6px;
-  background: #8884;
+    height: 1px;
+    margin: 4px 6px;
+    background: #8884;
 }
 
 @media (prefers-color-scheme: dark) {
-  .ctx-menu {
-    --ctx-bg: #26262b;
-    --ctx-hover: #2d3b66;
-  }
+    .ctx-menu {
+        --ctx-bg: #26262b;
+        --ctx-hover: #2d3b66;
+    }
 }
 
 .app-grid {
-  flex: 1;
-  min-height: 0;
-  padding: 8px;
+    flex: 1;
+    min-height: 0;
+    padding: 8px;
 }
 
 .app-msg {
-  padding: 24px;
-  color: #888;
-  max-width: 640px;
+    padding: 24px;
+    color: #888;
+    max-width: 640px;
 }
+
 .app-msg.error {
-  color: crimson;
+    color: crimson;
 }
 
 .app-info {
-  flex: none;
-  padding: 6px 16px;
-  border-top: 1px solid #8883;
-  font-size: 12px;
-  min-height: 28px;
+    flex: none;
+    padding: 6px 16px;
+    border-top: 1px solid #8883;
+    font-size: 12px;
+    min-height: 28px;
 }
+
 .app-info .muted {
-  color: #999;
+    color: #999;
 }
 
 /* --- Экран входа --- */
 .auth-screen {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
 }
+
 .auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 280px;
-  padding: 24px;
-  border: 1px solid #8883;
-  border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 280px;
+    padding: 24px;
+    border: 1px solid #8883;
+    border-radius: 10px;
 }
+
 .auth-form h1 {
-  font-size: 18px;
-  margin: 0;
+    font-size: 18px;
+    margin: 0;
 }
+
 .auth-form p {
-  margin: 0;
-  font-size: 13px;
-  color: #888;
+    margin: 0;
+    font-size: 13px;
+    color: #888;
 }
+
 .auth-form input {
-  padding: 8px;
-  font-size: 14px;
+    padding: 8px;
+    font-size: 14px;
 }
+
 .auth-form button {
-  padding: 8px;
-  font-size: 14px;
-  cursor: pointer;
+    padding: 8px;
+    font-size: 14px;
+    cursor: pointer;
 }
+
 .auth-error {
-  color: crimson;
-  font-size: 13px;
+    color: crimson;
+    font-size: 13px;
 }

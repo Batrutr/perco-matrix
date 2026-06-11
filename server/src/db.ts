@@ -52,34 +52,34 @@ CREATE TABLE IF NOT EXISTS meta (
 `;
 
 export function openDb(dbPath: string): DB {
-  mkdirSync(dirname(dbPath), { recursive: true });
-  const db = new DatabaseSync(dbPath);
-  db.exec("PRAGMA journal_mode = WAL;");
-  db.exec("PRAGMA foreign_keys = ON;");
-  db.exec(SCHEMA);
-  migrate(db);
-  return db;
+    mkdirSync(dirname(dbPath), { recursive: true });
+    const db = new DatabaseSync(dbPath);
+    db.exec("PRAGMA journal_mode = WAL;");
+    db.exec("PRAGMA foreign_keys = ON;");
+    db.exec(SCHEMA);
+    migrate(db);
+    return db;
 }
 
 /** Идемпотентные миграции для уже существующих БД. */
 function migrate(db: DB): void {
-  // employee_count добавлен позже — у старых БД колонки нет.
-  try {
-    db.exec("ALTER TABLE templates ADD COLUMN employee_count INTEGER");
-  } catch {
-    // колонка уже есть — игнорируем
-  }
+    // employee_count добавлен позже — у старых БД колонки нет.
+    try {
+        db.exec("ALTER TABLE templates ADD COLUMN employee_count INTEGER");
+    } catch {
+        // колонка уже есть — игнорируем
+    }
 }
 
 export function getMeta(db: DB, key: string): string | null {
-  const row = db.prepare("SELECT value FROM meta WHERE key = ?").get(key) as
-    | { value: string }
-    | undefined;
-  return row?.value ?? null;
+    const row = db.prepare("SELECT value FROM meta WHERE key = ?").get(key) as
+        | { value: string }
+        | undefined;
+    return row?.value ?? null;
 }
 
 export function setMeta(db: DB, key: string, value: string): void {
-  db.prepare(
-    "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-  ).run(key, value);
+    db.prepare(
+        "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    ).run(key, value);
 }

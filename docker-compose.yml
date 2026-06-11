@@ -1,20 +1,20 @@
 services:
-  perco-matrix:
-    build: .
-    image: perco-matrix:latest
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    env_file:
-      - .env
-    environment:
-      # Внутри контейнера слушаем все интерфейсы на 3000
-      HOST: 0.0.0.0
-      PORT: "3000"
-      DB_PATH: /app/data/perco.sqlite
-    volumes:
-      # Постоянное хранилище кэша SQLite
-      - perco-data:/app/data
+    perco-matrix:
+        build: .
+        image: perco-matrix:latest
+        restart: unless-stopped
+        ports:
+            - "3000:3000"
+        env_file:
+            - .env
+        environment:
+            # Внутри контейнера слушаем все интерфейсы на 3000
+            HOST: 0.0.0.0
+            PORT: "3000"
+            DB_PATH: /app/data/perco.sqlite
+        volumes:
+            # Постоянное хранилище кэша SQLite
+            - perco-data:/app/data
 
 volumes:
-  perco-data:
+    perco-data:

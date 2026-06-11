@@ -5,9 +5,9 @@ import { AuthGate } from "./components/AuthGate.js";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <AuthGate>
-      <App />
-    </AuthGate>
-  </StrictMode>,
+    <StrictMode>
+        <AuthGate>
+            <App />
+        </AuthGate>
+    </StrictMode>,
 );

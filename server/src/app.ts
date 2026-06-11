@@ -16,53 +16,53 @@ import { registerApiRoutes } from "./routes.js";
 const here = dirname(fileURLToPath(import.meta.url));
 
 export interface BuildOptions {
-  config: AppConfig;
-  db: DB;
-  refresh: RefreshState;
-  logger?: boolean;
-  serveStatic?: boolean;
+    config: AppConfig;
+    db: DB;
+    refresh: RefreshState;
+    logger?: boolean;
+    serveStatic?: boolean;
 }
 
 export async function buildApp(opts: BuildOptions): Promise<FastifyInstance> {
-  const { config, db, refresh } = opts;
-  const app = Fastify({ logger: opts.logger ?? true, bodyLimit: 64 * 1024 });
+    const { config, db, refresh } = opts;
+    const app = Fastify({ logger: opts.logger ?? true, bodyLimit: 64 * 1024 });
 
-  // Наружу не утекают стек/детали 5xx; клиентские ошибки сохраняют сообщение.
-  app.setErrorHandler((err: FastifyError, req, reply) => {
-    req.log.error(err);
-    const status = err.statusCode ?? 500;
-    if (status >= 500) void reply.code(500).send({ error: "Внутренняя ошибка сервера" });
-    else void reply.code(status).send({ error: err.message });
-  });
+    // Наружу не утекают стек/детали 5xx; клиентские ошибки сохраняют сообщение.
+    app.setErrorHandler((err: FastifyError, req, reply) => {
+        req.log.error(err);
+        const status = err.statusCode ?? 500;
+        if (status >= 500) void reply.code(500).send({ error: "Внутренняя ошибка сервера" });
+        else void reply.code(status).send({ error: err.message });
+    });
 
-  await registerSecurity(app, config);
+    await registerSecurity(app, config);
 
-  // Сжатие ответов (gzip/br): матрица с десятками тысяч ячеек и повторяющимися
-  // строками графиков жмётся в разы.
-  await app.register(fastifyCompress, { global: true, threshold: 1024 });
+    // Сжатие ответов (gzip/br): матрица с десятками тысяч ячеек и повторяющимися
+    // строками графиков жмётся в разы.
+    await app.register(fastifyCompress, { global: true, threshold: 1024 });
 
-  app.get("/api/health", async () => ({
-    ok: true,
-    db: "connected",
-    lastUpdateRooms: getMeta(db, "last_update_rooms"),
-    lastUpdateTemplates: getMeta(db, "last_update_templates"),
-  }));
+    app.get("/api/health", async () => ({
+        ok: true,
+        db: "connected",
+        lastUpdateRooms: getMeta(db, "last_update_rooms"),
+        lastUpdateTemplates: getMeta(db, "last_update_templates"),
+    }));
 
-  await registerApiRoutes(app, { db, refresh, importantTemplates: config.importantTemplates });
+    await registerApiRoutes(app, { db, refresh, importantTemplates: config.importantTemplates });
 
-  if (opts.serveStatic !== false) {
-    const clientDist = config.staticDir || join(here, "../../client/dist");
-    if (existsSync(clientDist)) {
-      await app.register(fastifyStatic, { root: clientDist });
-      app.setNotFoundHandler((req, reply) => {
-        if (req.raw.url?.startsWith("/api/")) {
-          void reply.code(404).send({ error: "Not Found" });
-          return;
+    if (opts.serveStatic !== false) {
+        const clientDist = config.staticDir || join(here, "../../client/dist");
+        if (existsSync(clientDist)) {
+            await app.register(fastifyStatic, { root: clientDist });
+            app.setNotFoundHandler((req, reply) => {
+                if (req.raw.url?.startsWith("/api/")) {
+                    void reply.code(404).send({ error: "Not Found" });
+                    return;
+                }
+                void reply.sendFile("index.html"); // SPA fallback
+            });
         }
-        void reply.sendFile("index.html"); // SPA fallback
-      });
     }
-  }
 
-  return app;
+    return app;
 }

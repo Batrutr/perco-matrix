@@ -1,325 +1,355 @@
 .mx-scroll {
-  position: relative;
-  overflow: auto;
-  width: 100%;
-  height: 100%;
-  border: 1px solid var(--mx-border, #8883);
-  background: var(--mx-bg, #fff);
-  font-size: 12px;
+    position: relative;
+    overflow: auto;
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--mx-border, #8883);
+    background: var(--mx-bg, #fff);
+    font-size: 12px;
 }
 
 /* --- Шапка (sticky top) --- */
 .mx-header {
-  position: sticky;
-  top: 0;
-  z-index: 4;
-  display: flex; /* угол + закреплённые столбцы — в потоке слева направо */
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    display: flex;
+    /* угол + закреплённые столбцы — в потоке слева направо */
 }
 
 .mx-corner {
-  position: sticky;
-  left: 0;
-  top: 0;
-  z-index: 6;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: stretch;
-  /* без нижнего padding — легенда прижата к низу, как ячейки-счётчики в столбцах */
-  padding: 6px 8px 0;
-  font-weight: 600;
-  background: var(--mx-head-bg, #eef);
-  border-right: 1px solid var(--mx-border, #8883);
-  border-bottom: 1px solid var(--mx-border, #8883);
+    position: sticky;
+    left: 0;
+    top: 0;
+    z-index: 6;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: stretch;
+    /* без нижнего padding — легенда прижата к низу, как ячейки-счётчики в столбцах */
+    padding: 6px 8px 0;
+    font-weight: 600;
+    background: var(--mx-head-bg, #eef);
+    border-right: 1px solid var(--mx-border, #8883);
+    border-bottom: 1px solid var(--mx-border, #8883);
 }
+
 .mx-corner-title {
-  align-self: flex-start;
+    align-self: flex-start;
 }
+
 .mx-corner-legend {
-  font-weight: 600;
-  font-size: 10px;
+    font-weight: 600;
+    font-size: 10px;
 }
 
 .mx-th {
-  position: absolute;
-  top: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 4px 2px;
-  background: var(--mx-head-bg, #eef);
-  border-right: 1px solid var(--mx-border, #8883);
-  border-bottom: 1px solid var(--mx-border, #8883);
-  overflow: hidden;
+    position: absolute;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px 2px;
+    background: var(--mx-head-bg, #eef);
+    border-right: 1px solid var(--mx-border, #8883);
+    border-bottom: 1px solid var(--mx-border, #8883);
+    overflow: hidden;
 }
 
 /* вертикальный текст имени шаблона; занимает всё над счётчиками */
 .mx-th-text {
-  flex: 1;
-  min-height: 0;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  align-self: center;
-  /* зазор до черты счётчиков. Текст повёрнут на 180°, поэтому padding ушёл бы
+    flex: 1;
+    min-height: 0;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    align-self: center;
+    /* зазор до черты счётчиков. Текст повёрнут на 180°, поэтому padding ушёл бы
      в визуальный верх — отступ задаём через margin (он не зависит от transform). */
-  margin-bottom: 8px;
+    margin-bottom: 8px;
 }
 
 /* Два счётчика под именем — каждое значение в своей ячейке-строке (на всю ширину
    столбца, с разделяющими рамками), крупнее для читаемости. */
 .mx-th-counts {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  /* компенсируем боковой padding .mx-th, чтобы ячейки были во всю ширину столбца */
-  margin: 0 -2px -4px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    /* компенсируем боковой padding .mx-th, чтобы ячейки были во всю ширину столбца */
+    margin: 0 -2px -4px;
 }
-.mx-th-counts > span {
-  display: block;
-  width: 100%;
-  text-align: center;
-  font-size: 11px;
-  line-height: 17px;
-  font-weight: 700;
-  border-top: 1px solid var(--mx-border, #8883);
+
+.mx-th-counts>span {
+    display: block;
+    width: 100%;
+    text-align: center;
+    font-size: 11px;
+    line-height: 17px;
+    font-weight: 700;
+    border-top: 1px solid var(--mx-border, #8883);
 }
 
 /* Цветовая привязка счётчиков к легенде в углу */
 .c-rooms {
-  color: var(--mx-c-rooms, #2e7d32);
+    color: var(--mx-c-rooms, #2e7d32);
 }
+
 .c-emp {
-  color: var(--mx-c-emp, #1565c0);
+    color: var(--mx-c-emp, #1565c0);
 }
 
 /* Легенда в углу — две строки во всю ширину, выровнены с ячейками-счётчиками
    (та же высота строки 17px + верхняя граница → черты совпадают по высоте). */
-.mx-corner-legend > span {
-  display: block;
-  text-align: right;
-  line-height: 17px;
-  border-top: 1px solid var(--mx-border, #8883);
+.mx-corner-legend>span {
+    display: block;
+    text-align: right;
+    line-height: 17px;
+    border-top: 1px solid var(--mx-border, #8883);
 }
 
 .mx-th.hot {
-  background: var(--mx-hot, #dde6ff);
+    background: var(--mx-hot, #dde6ff);
 }
+
 .mx-th.dim,
 .mx-row.dim {
-  opacity: 0.28;
+    opacity: 0.28;
 }
 
 /* Метка «через этот шаблон/помещение сейчас что-то скрыто» */
 .mx-hidemark {
-  color: var(--mx-mark, #e65100);
-  font-weight: 700;
-  font-size: 12px;
-  line-height: 1;
+    color: var(--mx-mark, #e65100);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 1;
 }
+
 .mx-hidemarks {
-  display: flex;
-  gap: 2px;
+    display: flex;
+    gap: 2px;
 }
+
 .mx-th .mx-hidemarks {
-  position: absolute;
-  top: 1px;
-  left: 3px;
-  z-index: 1;
+    position: absolute;
+    top: 1px;
+    left: 3px;
+    z-index: 1;
 }
+
 .mx-label .mx-hidemarks {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
 }
+
 .mx-th.marked {
-  box-shadow: inset 0 2px 0 var(--mx-mark, #e65100);
+    box-shadow: inset 0 2px 0 var(--mx-mark, #e65100);
 }
+
 .mx-label.marked {
-  box-shadow: inset 2px 0 0 var(--mx-mark, #e65100);
+    box-shadow: inset 2px 0 0 var(--mx-mark, #e65100);
 }
 
 /* Метка закреплённого шаблона */
 .mx-th .mx-pinmark {
-  position: absolute;
-  top: 1px;
-  right: 2px;
-  z-index: 1;
-  font-size: 10px;
-  line-height: 1;
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    z-index: 1;
+    font-size: 10px;
+    line-height: 1;
 }
 
 /* --- Тело --- */
 .mx-body {
-  position: relative;
+    position: relative;
 }
 
 .mx-row {
-  position: absolute;
-  left: 0;
-  display: flex; /* ярлык + закреплённые ячейки — в потоке слева */
+    position: absolute;
+    left: 0;
+    display: flex;
+    /* ярлык + закреплённые ячейки — в потоке слева */
 }
+
 .mx-row.hot .mx-cell,
 .mx-row.hot .mx-label {
-  background: var(--mx-hot, #dde6ff);
+    background: var(--mx-hot, #dde6ff);
 }
 
 .mx-label {
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  flex: none;
-  display: flex;
-  align-items: stretch;
-  padding-left: 4px;
-  background: var(--mx-label-bg, #f7f7fa);
-  border-right: 1px solid var(--mx-border, #8883);
-  border-bottom: 1px solid var(--mx-border, #8881);
-  white-space: nowrap;
-  overflow: hidden;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    flex: none;
+    display: flex;
+    align-items: stretch;
+    padding-left: 4px;
+    background: var(--mx-label-bg, #f7f7fa);
+    border-right: 1px solid var(--mx-border, #8883);
+    border-bottom: 1px solid var(--mx-border, #8881);
+    white-space: nowrap;
+    overflow: hidden;
 }
+
 .mx-label.clickable {
-  cursor: pointer;
-  user-select: none;
+    cursor: pointer;
+    user-select: none;
 }
 
 /* Линии уровней вложенности */
 .mx-guides {
-  flex: none;
-  display: flex;
-  height: 100%;
+    flex: none;
+    display: flex;
+    height: 100%;
 }
+
 .mx-guide {
-  width: 16px;
-  height: 100%;
-  border-left: 1px solid var(--mx-guide, #aaa6);
+    width: 16px;
+    height: 100%;
+    border-left: 1px solid var(--mx-guide, #aaa6);
 }
 
 /* Заметный указатель сворачивания: квадрат с + / − */
 .mx-caret {
-  flex: none;
-  align-self: center;
-  width: 15px;
-  height: 15px;
-  margin: 0 5px 0 1px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
-  border: 1px solid var(--mx-caret-border, #8896);
-  border-radius: 3px;
-  color: var(--mx-caret-fg, #2563c0);
-  background: var(--mx-caret-bg, #fff6);
+    flex: none;
+    align-self: center;
+    width: 15px;
+    height: 15px;
+    margin: 0 5px 0 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    border: 1px solid var(--mx-caret-border, #8896);
+    border-radius: 3px;
+    color: var(--mx-caret-fg, #2563c0);
+    background: var(--mx-caret-bg, #fff6);
 }
+
 .mx-caret.leaf {
-  border: none;
-  background: none;
+    border: none;
+    background: none;
 }
+
 .mx-name {
-  align-self: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    align-self: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .mx-cell {
-  position: absolute;
-  top: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  border-right: 1px solid var(--mx-border, #8881);
-  border-bottom: 1px solid var(--mx-border, #8881);
-  overflow: hidden;
+    position: absolute;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    border-right: 1px solid var(--mx-border, #8881);
+    border-bottom: 1px solid var(--mx-border, #8881);
+    overflow: hidden;
 }
+
 /* Закреплённые столбцы — sticky-элементы слева; непрозрачный фон, чтобы
    прокручиваемые ячейки уходили под них. Порядок правил важен: pinned → filled → hot. */
 .mx-th.pinned,
 .mx-cell.pinned {
-  flex: none;
+    flex: none;
 }
+
 .mx-cell.pinned {
-  background: var(--mx-bg, #fff);
+    background: var(--mx-bg, #fff);
 }
+
 .mx-th.pinned {
-  border-right: 2px solid var(--mx-border, #8884);
+    border-right: 2px solid var(--mx-border, #8884);
 }
+
 .mx-cell.pinned {
-  border-right: 2px solid var(--mx-border, #8884);
+    border-right: 2px solid var(--mx-border, #8884);
 }
+
 /* Черновой столбец «Требование» (режим подбора) */
 .mx-th.draft {
-  background: var(--mx-draft, #fff3e0);
+    background: var(--mx-draft, #fff3e0);
 }
+
 .mx-cell.draft {
-  background: var(--mx-draft, #fff3e0);
-  cursor: pointer;
-  font-weight: 700;
-  border-right: 2px solid var(--mx-border, #8884);
+    background: var(--mx-draft, #fff3e0);
+    cursor: pointer;
+    font-weight: 700;
+    border-right: 2px solid var(--mx-border, #8884);
 }
+
 .mx-cell.draft.set {
-  color: var(--mx-draft-fg, #e65100);
+    color: var(--mx-draft-fg, #e65100);
 }
+
 .mx-draft-add {
-  color: #aaa;
-  font-weight: 400;
+    color: #aaa;
+    font-weight: 400;
 }
 
 .mx-cell.filled {
-  background: var(--mx-filled, #e8f5e9);
+    background: var(--mx-filled, #e8f5e9);
 }
+
 .mx-cell.hot {
-  background: var(--mx-hot, #dde6ff);
+    background: var(--mx-hot, #dde6ff);
 }
+
 .mx-cell-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Признаки охраны/antipass — мелкие точки в правом верхнем углу, ширину не занимают */
 .mx-badges {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  display: inline-flex;
-  gap: 2px;
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: inline-flex;
+    gap: 2px;
 }
+
 .mx-badge {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
 }
+
 .mx-badge.g {
-  background: #c62828;
+    background: #c62828;
 }
+
 .mx-badge.a {
-  background: #1565c0;
+    background: #1565c0;
 }
 
 @media (prefers-color-scheme: dark) {
-  .mx-scroll {
-    --mx-bg: #1e1e1e;
-    --mx-border: #fff2;
-    --mx-head-bg: #2a2d3a;
-    --mx-label-bg: #26262b;
-    --mx-filled: #1b3a1f;
-    --mx-hot: #2d3b66;
-    --mx-guide: #ffffff33;
-    --mx-caret-border: #ffffff44;
-    --mx-caret-bg: #ffffff14;
-    --mx-caret-fg: #7aa2f7;
-    --mx-c-rooms: #81c784;
-    --mx-c-emp: #64b5f6;
-    --mx-mark: #ffb74d;
-    --mx-draft: #3a2f1c;
-    --mx-draft-fg: #ffb74d;
-  }
+    .mx-scroll {
+        --mx-bg: #1e1e1e;
+        --mx-border: #fff2;
+        --mx-head-bg: #2a2d3a;
+        --mx-label-bg: #26262b;
+        --mx-filled: #1b3a1f;
+        --mx-hot: #2d3b66;
+        --mx-guide: #ffffff33;
+        --mx-caret-border: #ffffff44;
+        --mx-caret-bg: #ffffff14;
+        --mx-caret-fg: #7aa2f7;
+        --mx-c-rooms: #81c784;
+        --mx-c-emp: #64b5f6;
+        --mx-mark: #ffb74d;
+        --mx-draft: #3a2f1c;
+        --mx-draft-fg: #ffb74d;
+    }
 }
