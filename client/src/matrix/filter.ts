@@ -4,12 +4,16 @@ import type { MatrixCell, Room } from "@perco/shared";
 export type TriState = "any" | "yes" | "no";
 export type FilterMode = "highlight" | "filter";
 
-export interface FilterState {
-  active: boolean;
-  mode: FilterMode;
+/** Критерии соответствия ячейки: график/охрана/antipass. Общие для фильтра и подбора. */
+export interface CellCriteria {
   scheduleId: number | null; // null = любой график
   guard: TriState;
   antipass: TriState;
+}
+
+export interface FilterState extends CellCriteria {
+  active: boolean;
+  mode: FilterMode;
 }
 
 export const EMPTY_FILTER: FilterState = {
@@ -25,8 +29,8 @@ function triMatch(state: TriState, value: boolean): boolean {
   return state === "yes" ? value : !value;
 }
 
-/** Подходит ли ячейка под фильтр. Наличие ячейки = есть доступ. */
-export function matchCell(cell: MatrixCell, f: FilterState): boolean {
+/** Подходит ли ячейка под критерии. Наличие ячейки = есть доступ. */
+export function matchCell(cell: MatrixCell, f: CellCriteria): boolean {
   if (f.scheduleId !== null && cell.scheduleId !== f.scheduleId) return false;
   if (!triMatch(f.guard, cell.isGuard)) return false;
   if (!triMatch(f.antipass, cell.isAntipass)) return false;

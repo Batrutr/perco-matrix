@@ -96,6 +96,116 @@
   padding: 4px 10px;
   cursor: pointer;
 }
+.finder-toggle.on {
+  font-weight: 600;
+  background: #fff3e0;
+}
+
+/* --- Панель подбора --- */
+.finder-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  font-size: 12px;
+}
+.finder-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.finder-head button {
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.finder-count {
+  color: #888;
+}
+.finder-hint {
+  color: #888;
+  max-width: 720px;
+}
+.finder-results {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.finder-ok {
+  color: #2e7d32;
+  font-weight: 600;
+}
+.finder-warn {
+  color: #e65100;
+  font-weight: 600;
+}
+.finder-tpl {
+  font-size: 12px;
+  padding: 3px 8px;
+  cursor: pointer;
+  border: 1px solid #8884;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+}
+.finder-tpl i {
+  color: #888;
+  font-style: normal;
+}
+.finder-uncovered {
+  color: crimson;
+}
+
+/* --- Редактор отметок требования --- */
+.spec-editor {
+  position: fixed;
+  z-index: 1000;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--ctx-bg, #fff);
+  border: 1px solid #8886;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px #0003;
+  font-size: 13px;
+}
+.spec-editor-title {
+  font-weight: 600;
+}
+.spec-editor label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.spec-editor select {
+  font-size: 13px;
+}
+.spec-editor-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.spec-editor-actions button {
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+  .finder-toggle.on {
+    background: #3a2f1c;
+  }
+  .spec-editor {
+    --ctx-bg: #26262b;
+    border-color: #ffffff33;
+  }
+}
 
 /* --- Тулбар фильтра --- */
 .app-toolbar {
@@ -147,10 +257,47 @@
   font-size: 12px;
   color: #888;
 }
+
+/* --- Быстрое сворачивание дерева --- */
+.tree-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.tree-controls-label {
+  color: #888;
+}
+.tree-controls button {
+  font-size: 12px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
 .show-hidden {
   font-size: 12px;
   padding: 4px 10px;
   cursor: pointer;
+}
+.combine-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #888;
+}
+.combine-toggle button {
+  font-size: 12px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.combine-toggle button.on {
+  font-weight: 700;
+  background: #dde6ff;
+}
+@media (prefers-color-scheme: dark) {
+  .combine-toggle button.on {
+    background: #2d3b66;
+  }
 }
 
 /* --- Контекстное меню --- */

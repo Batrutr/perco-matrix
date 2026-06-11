@@ -155,6 +155,12 @@ interface Props {
   onHover?: (info: HoverInfo | null) => void;
   onTemplateContext?: (templateId: number, x: number, y: number) => void;
   onRoomContext?: (roomId: number, x: number, y: number) => void;
+  /** Режим подбора: показать черновой столбец «Требование» слева */
+  draftActive?: boolean;
+  /** roomId → короткая подпись отметок в черновом столбце (наличие = помещение выбрано) */
+  draftCells?: ReadonlyMap<number, string>;
+  /** Клик по ячейке чернового столбца (добавить/изменить отметки) */
+  onDraftCell?: (roomId: number, x: number, y: number) => void;
 }
 
 export function MatrixGrid({
@@ -171,6 +177,9 @@ export function MatrixGrid({
   onHover,
   onTemplateContext,
   onRoomContext,
+  draftActive = false,
+  draftCells,
+  onDraftCell,
 }: Props) {
   const parentRef = useRef<HTMLDivElement>(null);
   // Наведение храним по стабильным id (roomId/templateId), а не по индексу строки —
@@ -193,8 +202,10 @@ export function MatrixGrid({
 
   const rowItems = rowV.getVirtualItems();
   const colItems = colV.getVirtualItems();
+  const draftW = draftActive ? COL_W : 0;
   const pinnedW = pinnedTemplates.length * COL_W;
-  const contentW = LABEL_W + pinnedW + colV.getTotalSize();
+  const baseLeft = LABEL_W + draftW; // сдвиг столбцов на черновой столбец
+  const contentW = baseLeft + pinnedW + colV.getTotalSize();
 
   // Стабильные колбэки — чтобы memo-пропсы ячеек не менялись на каждый рендер.
   const handleEnter = useCallback(
@@ -252,8 +263,17 @@ export function MatrixGrid({
             <span className="c-emp">сотрудников</span>
           </span>
         </div>
-        {pinnedTemplates.map((t, i) => renderHeader(t, LABEL_W + i * COL_W, true))}
-        {colItems.map((col) => renderHeader(templates[col.index]!, LABEL_W + pinnedW + col.start, false))}
+        {draftActive && (
+          <div
+            className="mx-th draft"
+            style={{ position: "sticky", left: LABEL_W, width: COL_W, height: HEADER_H, zIndex: 5 }}
+            title="Требование: задайте отметки по выбранным помещениям"
+          >
+            <span className="mx-th-text">Требование</span>
+          </div>
+        )}
+        {pinnedTemplates.map((t, i) => renderHeader(t, baseLeft + i * COL_W, true))}
+        {colItems.map((col) => renderHeader(templates[col.index]!, baseLeft + pinnedW + col.start, false))}
       </div>
 
       {/* Тело */}
@@ -297,8 +317,22 @@ export function MatrixGrid({
                 <span className="mx-name">{r.name || `#${r.roomId}`}</span>
                 {rowMark && hideMarks(rowMark, "шаблоны")}
               </div>
-              {pinnedTemplates.map((t, i) => renderCell(t, r, LABEL_W + i * COL_W, true))}
-              {colItems.map((col) => renderCell(templates[col.index]!, r, LABEL_W + pinnedW + col.start, false))}
+              {draftActive && (
+                <div
+                  className={`mx-cell draft${draftCells?.has(r.roomId) ? " set" : ""}`}
+                  style={{ position: "sticky", left: LABEL_W, width: COL_W, height: ROW_H, zIndex: 2 }}
+                  title="Клик — задать/изменить отметки требования для этого помещения"
+                  onClick={(e) => onDraftCell?.(r.roomId, e.clientX, e.clientY)}
+                >
+                  {draftCells?.has(r.roomId) ? (
+                    <span className="mx-cell-text">{draftCells.get(r.roomId)}</span>
+                  ) : (
+                    <span className="mx-draft-add">+</span>
+                  )}
+                </div>
+              )}
+              {pinnedTemplates.map((t, i) => renderCell(t, r, baseLeft + i * COL_W, true))}
+              {colItems.map((col) => renderCell(templates[col.index]!, r, baseLeft + pinnedW + col.start, false))}
             </div>
           );
         })}

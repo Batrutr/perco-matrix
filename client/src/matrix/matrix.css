@@ -254,6 +254,24 @@
 .mx-cell.pinned {
   border-right: 2px solid var(--mx-border, #8884);
 }
+/* Черновой столбец «Требование» (режим подбора) */
+.mx-th.draft {
+  background: var(--mx-draft, #fff3e0);
+}
+.mx-cell.draft {
+  background: var(--mx-draft, #fff3e0);
+  cursor: pointer;
+  font-weight: 700;
+  border-right: 2px solid var(--mx-border, #8884);
+}
+.mx-cell.draft.set {
+  color: var(--mx-draft-fg, #e65100);
+}
+.mx-draft-add {
+  color: #aaa;
+  font-weight: 400;
+}
+
 .mx-cell.filled {
   background: var(--mx-filled, #e8f5e9);
 }
@@ -301,5 +319,7 @@
     --mx-c-rooms: #81c784;
     --mx-c-emp: #64b5f6;
     --mx-mark: #ffb74d;
+    --mx-draft: #3a2f1c;
+    --mx-draft-fg: #ffb74d;
   }
 }

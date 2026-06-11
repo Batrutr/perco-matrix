@@ -1,5 +1,6 @@
 // Простое контекстное меню у курсора. Закрывается по Esc, клику вне и прокрутке.
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import { useDismiss, useViewportClamp } from "../hooks/usePopover.js";
 
 export interface MenuItem {
   label: string;
@@ -17,26 +18,11 @@ interface Props {
 
 export function ContextMenu({ x, y, items, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", onClose, true);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", onClose, true);
-    };
-  }, [onClose]);
+  useDismiss(ref, onClose);
+  const pos = useViewportClamp(ref, x, y);
 
   return (
-    <div ref={ref} className="ctx-menu" style={{ left: x, top: y }} role="menu">
+    <div ref={ref} className="ctx-menu" style={{ left: pos.left, top: pos.top }} role="menu">
       {items.map((it, i) => (
         <div key={i}>
           {it.divider && <div className="ctx-sep" />}
