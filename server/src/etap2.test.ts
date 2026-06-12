@@ -69,7 +69,7 @@ function fakeClient(): PercoClient {
 
 function buildApp(db: DB, refresh: RefreshState): FastifyInstance {
     const app = Fastify();
-    void registerApiRoutes(app, { db, refresh, importantTemplates: [] });
+    void registerApiRoutes(app, { db, refresh, importantTemplates: [], scheduleAbbr: {} });
     return app;
 }
 

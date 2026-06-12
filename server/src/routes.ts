@@ -16,6 +16,8 @@ export interface ApiDeps {
     refresh: RefreshState;
     /** «Важные» шаблоны из конфига (сырые записи: id или имя) */
     importantTemplates: string[];
+    /** Аббревиатуры графиков: имя → буква */
+    scheduleAbbr: Record<string, string>;
 }
 
 export async function registerApiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<void> {
@@ -24,6 +26,7 @@ export async function registerApiRoutes(app: FastifyInstance, deps: ApiDeps): Pr
     // Клиентская конфигурация (из серверного конфига)
     app.get("/api/config", async (): Promise<AppClientConfig> => ({
         importantTemplates: deps.importantTemplates,
+        scheduleAbbr: deps.scheduleAbbr,
     }));
 
     // --- Чтение кэша ---

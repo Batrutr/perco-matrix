@@ -50,29 +50,20 @@ export function computeVisibleRooms(
 }
 
 /**
- * Таблица аббревиатур графиков → одна буква (узкие ячейки).
- * Полное название всегда видно в подсказке и инфо-баре.
- * Дополняйте таблицу по мере появления новых графиков.
+ * Аббревиатура графика → одна буква (узкие ячейки). Таблица `abbr` (имя → буква)
+ * приходит из конфига сервера (env SCHEDULE_ABBR); жёстко в коде названий нет.
+ * Если имя не найдено — fallback на первую букву названия (или «•»).
  */
-export const SCHEDULE_ABBR: Record<string, string> = {
-    Всегда: "В",
-    Никогда: "Н",
-    "С 8 до 21 кроме вскр": "Б", // рабочий
-    "С 8 до 21 все дни": "О", // продлённый
-    "тест-до14:00": "Т",
-};
-
-/** Аббревиатура графика; fallback — первая буква названия (или «•»). */
-export function scheduleAbbr(name: string): string {
-    const hit = SCHEDULE_ABBR[name];
+export function scheduleAbbr(name: string, abbr: Record<string, string> = {}): string {
+    const hit = abbr[name];
     if (hit) return hit;
     const ch = name.trim()[0];
     return ch ? ch.toUpperCase() : "•";
 }
 
 /** Краткий текст ячейки: одна буква графика доступа. */
-export function cellText(cell: MatrixCell): string {
-    return scheduleAbbr(cell.scheduleName);
+export function cellText(cell: MatrixCell, abbr: Record<string, string> = {}): string {
+    return scheduleAbbr(cell.scheduleName, abbr);
 }
 
 /** Подробное описание ячейки для tooltip. */

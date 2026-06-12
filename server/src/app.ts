@@ -48,7 +48,12 @@ export async function buildApp(opts: BuildOptions): Promise<FastifyInstance> {
         lastUpdateTemplates: getMeta(db, "last_update_templates"),
     }));
 
-    await registerApiRoutes(app, { db, refresh, importantTemplates: config.importantTemplates });
+    await registerApiRoutes(app, {
+        db,
+        refresh,
+        importantTemplates: config.importantTemplates,
+        scheduleAbbr: config.scheduleAbbr,
+    });
 
     if (opts.serveStatic !== false) {
         const clientDist = config.staticDir || join(here, "../../client/dist");

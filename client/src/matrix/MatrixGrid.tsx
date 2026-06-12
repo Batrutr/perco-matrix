@@ -102,6 +102,7 @@ interface BodyCellProps {
     left: number;
     pinned: boolean;
     isHot: boolean; // подсветка по столбцу (строка — через CSS .mx-row.hot)
+    abbr: Record<string, string>; // таблица аббревиатур графиков (из конфига)
     onEnter: (room: RoomRow, template: Template, cell: MatrixCell | undefined) => void;
 }
 
@@ -112,6 +113,7 @@ const BodyCell = memo(function BodyCell({
     left,
     pinned,
     isHot,
+    abbr,
     onEnter,
 }: BodyCellProps) {
     const style: CSSProperties = pinned
@@ -126,7 +128,7 @@ const BodyCell = memo(function BodyCell({
         >
             {cell ? (
                 <>
-                    <span className="mx-cell-text">{cellText(cell)}</span>
+                    <span className="mx-cell-text">{cellText(cell, abbr)}</span>
                     {(cell.isGuard || cell.isAntipass) && (
                         <span className="mx-badges">
                             {cell.isGuard && <i className="mx-badge g" title="Охрана" />}
@@ -161,6 +163,8 @@ interface Props {
     draftCells?: ReadonlyMap<number, string>;
     /** Клик по ячейке чернового столбца (добавить/изменить отметки) */
     onDraftCell?: (roomId: number, x: number, y: number) => void;
+    /** Таблица аббревиатур графиков (имя → буква) из конфига сервера */
+    scheduleAbbr?: Record<string, string>;
 }
 
 export function MatrixGrid({
@@ -180,6 +184,7 @@ export function MatrixGrid({
     draftActive = false,
     draftCells,
     onDraftCell,
+    scheduleAbbr = {},
 }: Props) {
     const parentRef = useRef<HTMLDivElement>(null);
     // Наведение храним по стабильным id (roomId/templateId), а не по индексу строки —
@@ -248,6 +253,7 @@ export function MatrixGrid({
             left={left}
             pinned={pinned}
             isHot={hotTemplateId === t.id}
+            abbr={scheduleAbbr}
             onEnter={handleEnter}
         />
     );

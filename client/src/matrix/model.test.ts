@@ -84,9 +84,12 @@ test("buildCellIndex + cellKey", () => {
     assert.equal(idx.get(cellKey(10, 999)), undefined);
 });
 
-test("scheduleAbbr: таблица + fallback на первую букву", () => {
-    assert.equal(scheduleAbbr("Всегда"), "В");
-    assert.equal(scheduleAbbr("С 8 до 21 все дни"), "О");
+test("scheduleAbbr: таблица из конфига + fallback на первую букву", () => {
+    const abbr = { "Рабочий график": "О", "8-21": "Р" };
+    assert.equal(scheduleAbbr("Рабочий график", abbr), "О"); // по таблице
+    assert.equal(scheduleAbbr("8-21", abbr), "Р"); // по таблице
+    assert.equal(scheduleAbbr("Всегда", abbr), "В"); // нет в таблице → первая буква
+    assert.equal(scheduleAbbr("Всегда"), "В"); // без таблицы → первая буква
     assert.equal(scheduleAbbr("Неизвестный график"), "Н"); // fallback
     assert.equal(scheduleAbbr("   "), "•"); // пустое
 });

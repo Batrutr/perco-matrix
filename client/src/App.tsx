@@ -65,6 +65,8 @@ export function App() {
     const [hideCombine, setHideCombine] = useState<CombineMode>("all");
     const [pinnedTemplateIds, setPinnedTemplateIds] = useState<number[]>([]);
     const [importantTemplates, setImportantTemplates] = useState<string[]>([]);
+    // Аббревиатуры графиков (имя → буква) из конфига; пусто = первая буква имени.
+    const [scheduleAbbr, setScheduleAbbr] = useState<Record<string, string>>({});
     const [menu, setMenu] = useState<Menu | null>(null);
     // Режим подбора шаблона: требование (roomId → отметки) + позиция редактора отметок.
     const [finder, setFinder] = useState(false);
@@ -92,11 +94,17 @@ export function App() {
 
     useEffect(load, [load]);
 
-    // Конфиг «важных» шаблонов (грузим один раз; при сбое — пустой список)
+    // Конфиг сервера (грузим один раз; при сбое — пустые значения)
     useEffect(() => {
         fetchConfig()
-            .then((c) => setImportantTemplates(c.importantTemplates))
-            .catch(() => setImportantTemplates([]));
+            .then((c) => {
+                setImportantTemplates(c.importantTemplates);
+                setScheduleAbbr(c.scheduleAbbr);
+            })
+            .catch(() => {
+                setImportantTemplates([]);
+                setScheduleAbbr({});
+            });
     }, []);
 
     const refresh = useRefresh(load);
@@ -282,9 +290,9 @@ export function App() {
     // Подписи чернового столбца «Требование»
     const draftCells = useMemo(() => {
         const m = new Map<number, string>();
-        for (const [roomId, spec] of requirement) m.set(roomId, specLabel(spec, scheduleNameById));
+        for (const [roomId, spec] of requirement) m.set(roomId, specLabel(spec, scheduleNameById, scheduleAbbr));
         return m;
-    }, [requirement, scheduleNameById]);
+    }, [requirement, scheduleNameById, scheduleAbbr]);
 
     // Результат подбора: полные совпадения, иначе жадная комбинация
     const finderResult = useMemo(() => {
@@ -561,6 +569,7 @@ export function App() {
                         draftActive={finder}
                         draftCells={draftCells}
                         onDraftCell={handleDraftCell}
+                        scheduleAbbr={scheduleAbbr}
                     />
                 )}
             </div>
