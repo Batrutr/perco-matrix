@@ -68,6 +68,25 @@ export interface AppConfig {
     staticDir: string;
     /** «Важные» шаблоны для закрепления одной кнопкой — по id или по имени */
     importantTemplates: string[];
+    /** Аббревиатуры графиков для ячеек: имя графика → буква (из env SCHEDULE_ABBR, JSON) */
+    scheduleAbbr: Record<string, string>;
+}
+
+/** Парсинг SCHEDULE_ABBR (JSON «имя→буква»); при ошибке/пустом — {}. */
+function parseScheduleAbbr(): Record<string, string> {
+    const raw = process.env.SCHEDULE_ABBR;
+    if (!raw || !raw.trim()) return {};
+    try {
+        const parsed: unknown = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            const out: Record<string, string> = {};
+            for (const [k, v] of Object.entries(parsed)) if (typeof v === "string") out[k] = v;
+            return out;
+        }
+    } catch {
+        // невалидный JSON — игнорируем
+    }
+    return {};
 }
 
 export function loadConfig(): AppConfig {
@@ -103,5 +122,6 @@ export function loadConfig(): AppConfig {
             .split(",")
             .map((s) => s.trim())
             .filter((s) => s.length > 0),
+        scheduleAbbr: parseScheduleAbbr(),
     };
 }

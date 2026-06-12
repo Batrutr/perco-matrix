@@ -20,8 +20,12 @@ export function cellSatisfies(cell: MatrixCell | undefined, spec: CellSpec): boo
 }
 
 /** Короткая подпись отметок требования: график (или «·»), охрана О/о, antipass А/а. */
-export function specLabel(spec: CellSpec, scheduleName: ReadonlyMap<number, string>): string {
-    let s = spec.scheduleId !== null ? scheduleAbbr(scheduleName.get(spec.scheduleId) ?? "") : "·";
+export function specLabel(
+    spec: CellSpec,
+    scheduleName: ReadonlyMap<number, string>,
+    abbr: Record<string, string> = {},
+): string {
+    let s = spec.scheduleId !== null ? scheduleAbbr(scheduleName.get(spec.scheduleId) ?? "", abbr) : "·";
     if (spec.guard === "yes") s += "О";
     else if (spec.guard === "no") s += "о";
     if (spec.antipass === "yes") s += "А";

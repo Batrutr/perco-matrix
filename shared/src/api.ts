@@ -73,4 +73,6 @@ export interface MatrixResponse {
 export interface AppClientConfig {
     /** «Важные» шаблоны для закрепления одной кнопкой — по id или имени (сырые записи) */
     importantTemplates: string[];
+    /** Аббревиатуры графиков для ячеек: имя графика → буква. Пусто = первая буква имени */
+    scheduleAbbr: Record<string, string>;
 }
