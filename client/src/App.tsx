@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MatrixResponse, Template } from "@perco/shared";
 import { fetchConfig, fetchMatrix } from "./api/client.js";
 import { useRefresh } from "./hooks/useRefresh.js";
-import { annotateRooms, buildCellIndex, computeVisibleRooms } from "./matrix/model.js";
+import {
+    annotateRooms,
+    buildCellIndex,
+    computeVisibleRooms,
+    sortRoomsTree,
+    type RoomSortKey,
+} from "./matrix/model.js";
 import { ANY_SPEC, findFullMatches, greedySetCover, specLabel, type CellSpec } from "./matrix/finder.js";
 import {
     computeMatches,
@@ -35,6 +41,7 @@ import { SearchSortBar } from "./components/SearchSortBar.js";
 import { ContextMenu, type MenuItem } from "./components/ContextMenu.js";
 import { FinderPanel } from "./components/FinderPanel.js";
 import { SpecEditor } from "./components/SpecEditor.js";
+import { ThemeToggle } from "./components/ThemeToggle.js";
 import "./App.css";
 
 type Menu = { kind: "template" | "room"; id: number; x: number; y: number };
@@ -50,6 +57,9 @@ export function App() {
     const [roomQuery, setRoomQuery] = useState("");
     const [sortKey, setSortKey] = useState<SortKey>("name");
     const [sortDir, setSortDir] = useState<SortDir>("asc");
+    // Сортировка помещений с сохранением дерева: "tree" = исходный порядок PERCo.
+    const [roomSortKey, setRoomSortKey] = useState<RoomSortKey>("tree");
+    const [roomSortDir, setRoomSortDir] = useState<SortDir>("asc");
     // Скрытие задаётся покритериально и через источник:
     //  roomHidesByTemplate[templateId] = какие помещения скрыты через этот шаблон
     //  templateHidesByRoom[roomId]     = какие шаблоны скрыты через это помещение
@@ -110,6 +120,11 @@ export function App() {
     const refresh = useRefresh(load);
 
     const allRooms = useMemo(() => (data ? annotateRooms(data.rooms) : []), [data]);
+    // Помещения в выбранном порядке (по дереву или по имени, иерархия сохраняется).
+    const sortedRooms = useMemo(
+        () => sortRoomsTree(allRooms, roomSortKey, roomSortDir),
+        [allRooms, roomSortKey, roomSortDir],
+    );
     const cellIndex = useMemo(() => buildCellIndex(data?.cells ?? []), [data]);
     const schedules = useMemo(() => uniqueSchedules(data?.cells ?? []), [data]);
 
@@ -177,8 +192,8 @@ export function App() {
     }, [roomKeep, contextRoomKeep]);
 
     const visibleRooms = useMemo(
-        () => computeVisibleRooms(allRooms, collapsed, finalRoomKeep),
-        [allRooms, collapsed, finalRoomKeep],
+        () => computeVisibleRooms(sortedRooms, collapsed, finalRoomKeep),
+        [sortedRooms, collapsed, finalRoomKeep],
     );
 
     const templates = useMemo(() => data?.templates ?? [], [data]);
@@ -415,7 +430,12 @@ export function App() {
     return (
         <div className="app">
             <header className="app-top">
-                <h1>Матрица доступа PERCo</h1>
+                <div className="app-brand">
+                    <img className="app-logo" src="/favicon.svg" alt="" width={28} height={28} />
+                    <h1>
+                        Матрица доступа <span className="app-brand-accent">PERCo</span>
+                    </h1>
+                </div>
                 <RefreshBar
                     meta={data?.meta ?? null}
                     status={refresh.status}
@@ -431,11 +451,17 @@ export function App() {
                     roomQuery={roomQuery}
                     sortKey={sortKey}
                     sortDir={sortDir}
+                    roomSortKey={roomSortKey}
+                    roomSortDir={roomSortDir}
                     onTemplateQuery={setTemplateQuery}
                     onRoomQuery={setRoomQuery}
                     onSort={(key, dir) => {
                         setSortKey(key);
                         setSortDir(dir);
+                    }}
+                    onRoomSort={(key, dir) => {
+                        setRoomSortKey(key);
+                        setRoomSortDir(dir);
                     }}
                 />
                 <div className="pin-controls">
@@ -462,6 +488,7 @@ export function App() {
                     >
                         {finder ? "✕ Подбор" : "🔍 Подбор шаблона"}
                     </button>
+                    <ThemeToggle />
                 </div>
             </div>
 
@@ -492,56 +519,58 @@ export function App() {
                     matched={matches ? { templates: matches.templateIds.size, rooms: matches.roomIds.size } : null}
                     onChange={setFilter}
                 />
-                {data && allRooms.length > 0 && (
-                    <div className="tree-controls">
-                        <span className="tree-controls-label">Дерево:</span>
-                        <button onClick={() => collapseToLevel(1)} title="Свернуть всё (только верхний уровень)">
-                            свернуть всё
-                        </button>
-                        {Array.from({ length: Math.max(0, maxTreeDepth - 1) }, (_, i) => i + 2).map((lvl) => (
-                            <button key={lvl} onClick={() => collapseToLevel(lvl)} title={`Показать дерево до ${lvl} уровней`}>
-                                до ур. {lvl}
+                <div className="toolbar-right">
+                    {data && allRooms.length > 0 && (
+                        <div className="tree-controls">
+                            <span className="tree-controls-label">Дерево:</span>
+                            <button onClick={() => collapseToLevel(1)} title="Свернуть всё (только верхний уровень)">
+                                свернуть всё
                             </button>
-                        ))}
-                        <button onClick={expandAll} title="Развернуть всё">
-                            развернуть всё
-                        </button>
-                    </div>
-                )}
-                {data && (
-                    <span className="app-counts">
-                        показано: шаблонов {gridScroll.length + gridPinned.length} / {templates.length}, помещений{" "}
-                        {visibleRooms.length} / {allRooms.length}
-                    </span>
-                )}
-                {(roomHidesByTemplate.size >= 2 || templateHidesByRoom.size >= 2) && (
-                    <span className="combine-toggle" title="Как комбинировать несколько скрытий">
-                        совмещать:
+                            {Array.from({ length: Math.max(0, maxTreeDepth - 1) }, (_, i) => i + 2).map((lvl) => (
+                                <button key={lvl} onClick={() => collapseToLevel(lvl)} title={`Показать дерево до ${lvl} уровней`}>
+                                    до ур. {lvl}
+                                </button>
+                            ))}
+                            <button onClick={expandAll} title="Развернуть всё">
+                                развернуть всё
+                            </button>
+                        </div>
+                    )}
+                    {(roomHidesByTemplate.size >= 2 || templateHidesByRoom.size >= 2) && (
+                        <span className="combine-toggle" title="Как комбинировать несколько скрытий">
+                            совмещать:
+                            <button
+                                className={hideCombine === "all" ? "on" : ""}
+                                onClick={() => setHideCombine("all")}
+                                title="Видно то, что прошло ВСЕ скрытия (пересечение)"
+                            >
+                                ∩ во всех
+                            </button>
+                            <button
+                                className={hideCombine === "any" ? "on" : ""}
+                                onClick={() => setHideCombine("any")}
+                                title="Видно то, что прошло хотя бы одно скрытие (объединение)"
+                            >
+                                ∪ в любом
+                            </button>
+                        </span>
+                    )}
+                    {hasHidden && (
                         <button
-                            className={hideCombine === "all" ? "on" : ""}
-                            onClick={() => setHideCombine("all")}
-                            title="Видно то, что прошло ВСЕ скрытия (пересечение)"
+                            className="show-hidden"
+                            onClick={clearHidden}
+                            title="Показать разом всё, что было скрыто через контекстное меню"
                         >
-                            ∩ во всех
+                            Показать всё скрытое
                         </button>
-                        <button
-                            className={hideCombine === "any" ? "on" : ""}
-                            onClick={() => setHideCombine("any")}
-                            title="Видно то, что прошло хотя бы одно скрытие (объединение)"
-                        >
-                            ∪ в любом
-                        </button>
-                    </span>
-                )}
-                {hasHidden && (
-                    <button
-                        className="show-hidden"
-                        onClick={clearHidden}
-                        title="Показать разом всё, что было скрыто через контекстное меню"
-                    >
-                        Показать всё скрытое
-                    </button>
-                )}
+                    )}
+                    {data && (
+                        <span className="app-counts">
+                            показано: шаблонов {gridScroll.length + gridPinned.length} / {templates.length},
+                            помещений {visibleRooms.length} / {allRooms.length}
+                        </span>
+                    )}
+                </div>
             </div>
 
             <div className="app-grid">

@@ -3,6 +3,17 @@
     color-scheme: light dark;
 }
 
+/* Тема выставляется атрибутом data-theme на <html> (см. useTheme + скрипт в
+   index.html). Фиксируем color-scheme, чтобы нативные контролы/скроллбары
+   совпадали с принудительно выбранной темой. */
+:root[data-theme="light"] {
+    color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+}
+
 * {
     box-sizing: border-box;
 }

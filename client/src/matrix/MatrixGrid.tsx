@@ -263,7 +263,9 @@ export function MatrixGrid({
             {/* Шапка */}
             <div className="mx-header" style={{ width: contentW, height: HEADER_H }}>
                 <div className="mx-corner" style={{ width: LABEL_W, height: HEADER_H }}>
-                    <span className="mx-corner-title">Помещения \ Шаблоны</span>
+                    <span className="mx-corner-title">
+                        Помещения <span className="mx-corner-sep">\</span> Шаблоны
+                    </span>
                     <span className="mx-corner-legend">
                         <span className="c-rooms">помещений</span>
                         <span className="c-emp">сотрудников</span>
@@ -296,7 +298,7 @@ export function MatrixGrid({
                             style={{ top: row.start, height: ROW_H, width: contentW }}
                         >
                             <div
-                                className={`mx-label${r.hasChildren ? " clickable" : ""}${rowMark ? " marked" : ""}`}
+                                className={`mx-label${r.hasChildren ? " clickable" : " leaf"}${rowMark ? " marked" : ""}`}
                                 style={{ width: LABEL_W, height: ROW_H }}
                                 onClick={() => r.hasChildren && onToggle(r.id)}
                                 onContextMenu={
@@ -320,7 +322,9 @@ export function MatrixGrid({
                                 ) : (
                                     <span className="mx-caret leaf" />
                                 )}
-                                <span className="mx-name">{r.name || `#${r.roomId}`}</span>
+                                <span className="mx-name" title={r.name || `#${r.roomId}`}>
+                                    {r.name || `#${r.roomId}`}
+                                </span>
                                 {rowMark && hideMarks(rowMark, "шаблоны")}
                             </div>
                             {draftActive && (

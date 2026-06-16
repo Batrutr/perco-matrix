@@ -8,6 +8,7 @@ import {
     computeVisibleRooms,
     cellText,
     scheduleAbbr,
+    sortRoomsTree,
 } from "./model.js";
 
 function room(partial: Partial<Room> & { id: number; depth: number }): Room {
@@ -60,6 +61,43 @@ test("computeVisibleRooms: свёрнутый корень скрывает вс
     assert.deepEqual(
         visible.map((r) => r.id),
         [1],
+    );
+});
+
+// Дерево с именами: корень 1 → {2 «Яблоко» → 3 «Груша», 4 «Абрикос»}
+const NAMED: Room[] = [
+    room({ id: 1, depth: 0, parentId: null, sortOrder: 0, name: "Корень" }),
+    room({ id: 2, depth: 1, parentId: 1, sortOrder: 1, name: "Яблоко" }),
+    room({ id: 3, depth: 2, parentId: 2, sortOrder: 2, name: "Груша" }),
+    room({ id: 4, depth: 1, parentId: 1, sortOrder: 3, name: "Абрикос" }),
+];
+
+test("sortRoomsTree: tree восстанавливает исходный порядок (по sortOrder)", () => {
+    const a = annotateRooms(NAMED);
+    assert.deepEqual(
+        sortRoomsTree(a, "tree", "asc").map((r) => r.id),
+        [1, 2, 3, 4],
+    );
+});
+
+test("sortRoomsTree: name сортирует соседей, сохраняя иерархию", () => {
+    const a = annotateRooms(NAMED);
+    // соседи под корнем по имени: Абрикос(4) перед Яблоко(2); потомок 3 идёт за 2
+    assert.deepEqual(
+        sortRoomsTree(a, "name", "asc").map((r) => r.id),
+        [1, 4, 2, 3],
+    );
+    // обратный порядок соседей; иерархия (3 за 2) сохраняется
+    assert.deepEqual(
+        sortRoomsTree(a, "name", "desc").map((r) => r.id),
+        [1, 2, 3, 4],
+    );
+    // глубина не меняется и ни одна строка не теряется
+    const sorted = sortRoomsTree(a, "name", "asc");
+    assert.equal(sorted.length, NAMED.length);
+    assert.deepEqual(
+        sorted.map((r) => r.depth),
+        [0, 1, 1, 2],
     );
 });
 

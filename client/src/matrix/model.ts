@@ -1,9 +1,59 @@
 // Чистая логика матрицы: индекс ячеек, дерево помещений, сворачивание, формат ячейки.
 // Без React — тестируется отдельно.
 import type { MatrixCell, Room, Template } from "@perco/shared";
+import type { SortDir } from "./search.js";
 
 export interface RoomRow extends Room {
     hasChildren: boolean;
+}
+
+/** Ключ сортировки помещений: "tree" = исходный порядок PERCo, "name" = по имени. */
+export type RoomSortKey = "tree" | "name";
+
+/**
+ * Сортировка помещений С СОХРАНЕНИЕМ ДЕРЕВА: упорядочиваем соседей (детей одного
+ * родителя), но потомки всегда идут сразу за своим родителем с большей глубиной —
+ * то есть результат остаётся корректным DFS-списком (как ждут computeVisibleRooms
+ * и логика сворачивания). "tree" восстанавливает исходный порядок (по sortOrder).
+ */
+export function sortRoomsTree(rooms: RoomRow[], key: RoomSortKey, dir: SortDir): RoomRow[] {
+    const sign = dir === "asc" ? 1 : -1;
+    const byName = (a: RoomRow, b: RoomRow): number =>
+        (a.name || `#${a.roomId}`).localeCompare(b.name || `#${b.roomId}`, "ru");
+    const cmp = (a: RoomRow, b: RoomRow): number => {
+        if (key === "name") {
+            const c = byName(a, b) * sign;
+            return c !== 0 ? c : a.sortOrder - b.sortOrder; // стабильность по исходному порядку
+        }
+        return (a.sortOrder - b.sortOrder) * sign;
+    };
+
+    // Группируем по родителю (в исходном порядке); корни — без родителя или со
+    // ссылкой на отсутствующего родителя (защита от «висячих» ссылок, чтобы не
+    // потерять строки).
+    const ids = new Set(rooms.map((r) => r.id));
+    const childrenByParent = new Map<number, RoomRow[]>();
+    const roots: RoomRow[] = [];
+    for (const r of rooms) {
+        if (r.parentId === null || !ids.has(r.parentId)) {
+            roots.push(r);
+        } else {
+            const arr = childrenByParent.get(r.parentId);
+            if (arr) arr.push(r);
+            else childrenByParent.set(r.parentId, [r]);
+        }
+    }
+
+    const out: RoomRow[] = [];
+    const walk = (nodes: RoomRow[]): void => {
+        for (const n of [...nodes].sort(cmp)) {
+            out.push(n);
+            const kids = childrenByParent.get(n.id);
+            if (kids) walk(kids);
+        }
+    };
+    walk(roots);
+    return out;
 }
 
 /** Ключ ячейки в индексе: шаблон × помещение (по room_id == access_zone_id). */

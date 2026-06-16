@@ -3,21 +3,128 @@
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
+
+    /* Единая палитра контролов панелей (переопределяется в тёмной теме). */
+    --accent: #2563c0;
+    --accent-strong: #1d4ea0;
+    --ctl-border: #cdd5e3;
+    --ctl-bg: #fff;
+    --ctl-hover: #eef4ff;
+    --ctl-on: #dde6ff;
+    --muted: #6b7280;
+    --bar-bg: #fafbfe;
+}
+
+[data-theme="dark"] .app {
+    --accent: #7aa2f7;
+    --accent-strong: #93b4ff;
+    --ctl-border: #ffffff2e;
+    --ctl-bg: #ffffff12;
+    --ctl-hover: #ffffff20;
+    --ctl-on: #2d3b66;
+    --muted: #9aa3b2;
+    --bar-bg: #1b1e26;
+}
+
+/* --- Единый вид контролов в панелях (поиск/сортировка/фильтр/дерево) --- */
+.app-toolbar input[type="search"],
+.app-toolbar select {
+    font: inherit;
+    font-size: 12px;
+    padding: 4px 8px;
+    border: 1px solid var(--ctl-border);
+    border-radius: 6px;
+    background: var(--ctl-bg);
+    color: inherit;
+    transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.app-toolbar input[type="search"]:focus,
+.app-toolbar select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.pin-controls button,
+.theme-toggle,
+.tree-controls button,
+.combine-toggle button,
+.show-hidden {
+    font: inherit;
+    font-size: 12px;
+    padding: 5px 10px;
+    cursor: pointer;
+    border: 1px solid var(--ctl-border);
+    border-radius: 6px;
+    background: var(--ctl-bg);
+    color: inherit;
+    transition: background 0.12s, border-color 0.12s;
+}
+
+.pin-controls button:hover:not(:disabled),
+.theme-toggle:hover,
+.tree-controls button:hover,
+.combine-toggle button:hover,
+.show-hidden:hover {
+    border-color: var(--accent);
+    background: var(--ctl-hover);
 }
 
 .app-top {
+    position: relative;
     flex: none;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding: 8px 16px;
-    border-bottom: 1px solid #8883;
+    padding: 10px 18px;
+    background: var(--top-bg, linear-gradient(180deg, #f8faff, #eef3fb));
+    border-bottom: 1px solid var(--top-border, #dbe3f2);
+}
+
+/* Тонкая фирменная линия-акцент под шапкой (синий → зелёный, как у иконки). */
+.app-top::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: linear-gradient(90deg, #2563c0, #8bc34a);
+}
+
+.app-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.app-logo {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px #0003;
 }
 
 .app-top h1 {
-    font-size: 18px;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
     margin: 0;
+    white-space: nowrap;
+}
+
+.app-brand-accent {
+    color: var(--brand-accent, #2563c0);
+}
+
+[data-theme="dark"] .app-top {
+    --top-bg: linear-gradient(180deg, #20242e, #191c24);
+    --top-border: #ffffff1f;
+    --brand-accent: #7aa2f7;
 }
 
 .app-meta {
@@ -50,17 +157,41 @@
 
 .refresh-buttons button {
     font-size: 12px;
-    padding: 5px 10px;
+    padding: 6px 12px;
     cursor: pointer;
+    border: 1px solid var(--btn-border, #c5cee0);
+    border-radius: 6px;
+    background: var(--btn-bg, #fff);
+    color: inherit;
+    transition: background 0.12s, border-color 0.12s;
+}
+
+.refresh-buttons button:hover:not(:disabled) {
+    border-color: #2563c0;
+    background: var(--btn-hover, #eef4ff);
 }
 
 .refresh-buttons button.primary {
     font-weight: 600;
+    color: #fff;
+    background: #2563c0;
+    border-color: #2563c0;
+}
+
+.refresh-buttons button.primary:hover:not(:disabled) {
+    background: #1d4ea0;
+    border-color: #1d4ea0;
 }
 
 .refresh-buttons button:disabled {
     cursor: default;
-    opacity: 0.6;
+    opacity: 0.5;
+}
+
+[data-theme="dark"] .refresh-buttons button {
+    --btn-border: #ffffff2e;
+    --btn-bg: #ffffff10;
+    --btn-hover: #ffffff1f;
 }
 
 .refresh-status {
@@ -91,12 +222,6 @@
     gap: 6px;
 }
 
-.search-field input,
-.search-field select {
-    font-size: 12px;
-    padding: 3px 6px;
-}
-
 .search-field input[type="search"] {
     width: 160px;
 }
@@ -104,12 +229,6 @@
 .pin-controls {
     display: inline-flex;
     gap: 8px;
-}
-
-.pin-controls button {
-    font-size: 12px;
-    padding: 4px 10px;
-    cursor: pointer;
 }
 
 .finder-toggle.on {
@@ -228,15 +347,13 @@
     cursor: pointer;
 }
 
-@media (prefers-color-scheme: dark) {
-    .finder-toggle.on {
-        background: #3a2f1c;
-    }
+[data-theme="dark"] .finder-toggle.on {
+    background: #3a2f1c;
+}
 
-    .spec-editor {
-        --ctx-bg: #26262b;
-        border-color: #ffffff33;
-    }
+[data-theme="dark"] .spec-editor {
+    --ctx-bg: #26262b;
+    border-color: #ffffff33;
 }
 
 /* --- Тулбар фильтра --- */
@@ -246,8 +363,18 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding: 6px 16px;
-    border-bottom: 1px solid #8883;
+    padding: 8px 18px;
+    background: var(--bar-bg);
+    border-bottom: 1px solid var(--ctl-border);
+    flex-wrap: wrap;
+}
+
+/* Правая группа второго тулбара (дерево / совмещение / скрытое / счётчики). */
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
     flex-wrap: wrap;
 }
 
@@ -290,12 +417,13 @@
 }
 
 .filter-matched {
-    color: #1565c0;
+    color: var(--accent);
 }
 
 .app-counts {
     font-size: 12px;
-    color: #888;
+    color: var(--muted);
+    white-space: nowrap;
 }
 
 /* --- Быстрое сворачивание дерева --- */
@@ -307,19 +435,7 @@
 }
 
 .tree-controls-label {
-    color: #888;
-}
-
-.tree-controls button {
-    font-size: 12px;
-    padding: 3px 8px;
-    cursor: pointer;
-}
-
-.show-hidden {
-    font-size: 12px;
-    padding: 4px 10px;
-    cursor: pointer;
+    color: var(--muted);
 }
 
 .combine-toggle {
@@ -327,24 +443,13 @@
     align-items: center;
     gap: 4px;
     font-size: 12px;
-    color: #888;
-}
-
-.combine-toggle button {
-    font-size: 12px;
-    padding: 3px 8px;
-    cursor: pointer;
+    color: var(--muted);
 }
 
 .combine-toggle button.on {
     font-weight: 700;
-    background: #dde6ff;
-}
-
-@media (prefers-color-scheme: dark) {
-    .combine-toggle button.on {
-        background: #2d3b66;
-    }
+    border-color: var(--accent);
+    background: var(--ctl-on);
 }
 
 /* --- Контекстное меню --- */
@@ -382,11 +487,9 @@
     background: #8884;
 }
 
-@media (prefers-color-scheme: dark) {
-    .ctx-menu {
-        --ctx-bg: #26262b;
-        --ctx-hover: #2d3b66;
-    }
+[data-theme="dark"] .ctx-menu {
+    --ctx-bg: #26262b;
+    --ctx-hover: #2d3b66;
 }
 
 .app-grid {

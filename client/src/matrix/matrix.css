@@ -28,20 +28,42 @@
     justify-content: space-between;
     align-items: stretch;
     /* без нижнего padding — легенда прижата к низу, как ячейки-счётчики в столбцах */
-    padding: 6px 8px 0;
+    padding: 8px 10px 0;
     font-weight: 600;
-    background: var(--mx-head-bg, #eef);
+    background: linear-gradient(180deg, var(--mx-corner-bg, #eef3fb), var(--mx-head-bg, #eef));
     border-right: 1px solid var(--mx-border, #8883);
     border-bottom: 1px solid var(--mx-border, #8883);
 }
 
+/* Фирменная диагональ-акцент по низу угла (в тон линии под шапкой приложения). */
+.mx-corner::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: linear-gradient(90deg, #2563c0, #8bc34a);
+}
+
 .mx-corner-title {
     align-self: flex-start;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+.mx-corner-sep {
+    margin: 0 2px;
+    font-weight: 700;
+    color: var(--mx-corner-accent, #2563c0);
 }
 
 .mx-corner-legend {
-    font-weight: 600;
+    font-weight: 700;
     font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
 }
 
 .mx-th {
@@ -202,7 +224,9 @@
     user-select: none;
 }
 
-/* Линии уровней вложенности */
+/* Линии уровней вложенности. Вертикаль — по центру колонки знака сворачивания
+   (≈8px от левого края ячейки-направляющей, совпадает с центром .mx-caret),
+   у последней направляющей — горизонтальная перемычка к узлу. */
 .mx-guides {
     flex: none;
     display: flex;
@@ -210,9 +234,34 @@
 }
 
 .mx-guide {
+    position: relative;
     width: 16px;
     height: 100%;
-    border-left: 1px solid var(--mx-guide, #aaa6);
+}
+
+.mx-guide::before {
+    content: "";
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--mx-guide, #aaa6);
+}
+
+.mx-guide:last-child::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    background: var(--mx-guide, #aaa6);
+}
+
+/* У листа (нет каретки) перемычку тянем через пустое место каретки к тексту. */
+.mx-label.leaf .mx-guide:last-child::after {
+    right: -16px;
 }
 
 /* Заметный указатель сворачивания: квадрат с + / − */
@@ -334,22 +383,22 @@
     background: #1565c0;
 }
 
-@media (prefers-color-scheme: dark) {
-    .mx-scroll {
-        --mx-bg: #1e1e1e;
-        --mx-border: #fff2;
-        --mx-head-bg: #2a2d3a;
-        --mx-label-bg: #26262b;
-        --mx-filled: #1b3a1f;
-        --mx-hot: #2d3b66;
-        --mx-guide: #ffffff33;
-        --mx-caret-border: #ffffff44;
-        --mx-caret-bg: #ffffff14;
-        --mx-caret-fg: #7aa2f7;
-        --mx-c-rooms: #81c784;
-        --mx-c-emp: #64b5f6;
-        --mx-mark: #ffb74d;
-        --mx-draft: #3a2f1c;
-        --mx-draft-fg: #ffb74d;
-    }
+[data-theme="dark"] .mx-scroll {
+    --mx-bg: #1e1e1e;
+    --mx-border: #fff2;
+    --mx-head-bg: #2a2d3a;
+    --mx-corner-bg: #313548;
+    --mx-corner-accent: #7aa2f7;
+    --mx-label-bg: #26262b;
+    --mx-filled: #1b3a1f;
+    --mx-hot: #2d3b66;
+    --mx-guide: #ffffff33;
+    --mx-caret-border: #ffffff44;
+    --mx-caret-bg: #ffffff14;
+    --mx-caret-fg: #7aa2f7;
+    --mx-c-rooms: #81c784;
+    --mx-c-emp: #64b5f6;
+    --mx-mark: #ffb74d;
+    --mx-draft: #3a2f1c;
+    --mx-draft-fg: #ffb74d;
 }
