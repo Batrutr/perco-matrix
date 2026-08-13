@@ -21,6 +21,47 @@ export function FinderPanel({
     onClear,
     onExit,
 }: Props) {
+    const results =
+        selectedCount === 0 ? (
+            <div className="finder-hint">
+                Кликайте по ячейкам столбца «Требование» — выберите помещения и задайте нужные отметки
+                (график / охрана / antipass). Подходящие шаблоны появятся здесь.
+            </div>
+        ) : fullMatches.length > 0 ? (
+            <div className="finder-results">
+                <span className="finder-ok">Подходят целиком ({fullMatches.length}):</span>
+                {fullMatches.map((t) => (
+                    <button key={t.id} className="finder-tpl" title="Закрепить слева" onClick={() => onPick(t.id)}>
+                        {t.name}
+                    </button>
+                ))}
+            </div>
+        ) : combination && combination.length > 0 ? (
+            <div className="finder-results">
+                <span className="finder-warn">
+                    Целиком — никто. Комбинация ({combination.length}
+                    {uncoveredNames.length ? ", частично" : ""}):
+                </span>
+                {combination.map(({ template, covers }) => (
+                    <button
+                        key={template.id}
+                        className="finder-tpl"
+                        title="Закрепить слева"
+                        onClick={() => onPick(template.id)}
+                    >
+                        {template.name} <i>+{covers.length}</i>
+                    </button>
+                ))}
+                {uncoveredNames.length > 0 && (
+                    <span className="finder-uncovered">
+                        Не покрываются: {uncoveredNames.join(", ")}
+                    </span>
+                )}
+            </div>
+        ) : (
+            <div className="finder-hint">Подходящих шаблонов нет ни по одному выбранному помещению.</div>
+        );
+
     return (
         <div className="finder-panel">
             <div className="finder-head">
@@ -30,47 +71,13 @@ export function FinderPanel({
                     Сбросить
                 </button>
                 <button onClick={onExit}>Выйти из режима</button>
-            </div>
-
-            {selectedCount === 0 ? (
-                <div className="finder-hint">
-                    Кликайте по ячейкам столбца «Требование» — выберите помещения и задайте нужные отметки
-                    (график / охрана / antipass). Подходящие шаблоны появятся здесь.
-                </div>
-            ) : fullMatches.length > 0 ? (
-                <div className="finder-results">
-                    <span className="finder-ok">Подходят целиком ({fullMatches.length}):</span>
-                    {fullMatches.map((t) => (
-                        <button key={t.id} className="finder-tpl" title="Закрепить слева" onClick={() => onPick(t.id)}>
-                            {t.name}
-                        </button>
-                    ))}
-                </div>
-            ) : combination && combination.length > 0 ? (
-                <div className="finder-results">
-                    <span className="finder-warn">
-                        Целиком — никто. Комбинация ({combination.length}
-                        {uncoveredNames.length ? ", частично" : ""}):
+                {selectedCount > 0 && (
+                    <span className="finder-legend">
+                        отметки: буква — график (· — любой), О/о — охрана да/нет, А/а — antipass да/нет
                     </span>
-                    {combination.map(({ template, covers }) => (
-                        <button
-                            key={template.id}
-                            className="finder-tpl"
-                            title="Закрепить слева"
-                            onClick={() => onPick(template.id)}
-                        >
-                            {template.name} <i>+{covers.length}</i>
-                        </button>
-                    ))}
-                    {uncoveredNames.length > 0 && (
-                        <span className="finder-uncovered">
-                            Не покрываются: {uncoveredNames.join(", ")}
-                        </span>
-                    )}
-                </div>
-            ) : (
-                <div className="finder-hint">Подходящих шаблонов нет ни по одному выбранному помещению.</div>
-            )}
+                )}
+            </div>
+            {results}
         </div>
     );
 }

@@ -1,4 +1,5 @@
-// Панель фильтрации/подсветки по значениям ячеек.
+// Панель фильтрации/подсветки по значениям ячеек. Живёт в поповере тулбара,
+// поэтому раскладка вертикальная (подпись слева, контрол справа).
 import type { FilterMode, FilterState, TriState } from "../matrix/filter.js";
 
 interface Props {
@@ -20,12 +21,12 @@ export function FilterPanel({ filter, schedules, matched, onChange }: Props) {
                     checked={filter.active}
                     onChange={(e) => set({ active: e.target.checked })}
                 />
-                Фильтр
+                Фильтр по значениям
             </label>
 
             <fieldset disabled={!filter.active} className="filter-controls">
-                <label>
-                    Режим:
+                <label className="pop-row">
+                    <span>Режим</span>
                     <select
                         value={filter.mode}
                         onChange={(e) => set({ mode: e.target.value as FilterMode })}
@@ -35,8 +36,8 @@ export function FilterPanel({ filter, schedules, matched, onChange }: Props) {
                     </select>
                 </label>
 
-                <label>
-                    График:
+                <label className="pop-row">
+                    <span>График</span>
                     <select
                         value={filter.scheduleId ?? ""}
                         onChange={(e) => set({ scheduleId: e.target.value ? Number(e.target.value) : null })}
@@ -50,8 +51,8 @@ export function FilterPanel({ filter, schedules, matched, onChange }: Props) {
                     </select>
                 </label>
 
-                <label>
-                    Охрана:
+                <label className="pop-row">
+                    <span>Охрана</span>
                     <select value={filter.guard} onChange={(e) => set({ guard: e.target.value as TriState })}>
                         <option value="any">любая</option>
                         <option value="yes">да</option>
@@ -59,8 +60,8 @@ export function FilterPanel({ filter, schedules, matched, onChange }: Props) {
                     </select>
                 </label>
 
-                <label>
-                    Antipass:
+                <label className="pop-row">
+                    <span>Antipass</span>
                     <select
                         value={filter.antipass}
                         onChange={(e) => set({ antipass: e.target.value as TriState })}

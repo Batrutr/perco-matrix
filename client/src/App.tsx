@@ -6,6 +6,7 @@ import {
     annotateRooms,
     buildCellIndex,
     computeVisibleRooms,
+    scheduleAbbr as abbrOf,
     sortRoomsTree,
     type RoomSortKey,
 } from "./matrix/model.js";
@@ -41,10 +42,26 @@ import { SearchSortBar } from "./components/SearchSortBar.js";
 import { ContextMenu, type MenuItem } from "./components/ContextMenu.js";
 import { FinderPanel } from "./components/FinderPanel.js";
 import { SpecEditor } from "./components/SpecEditor.js";
+import { SizeToggle } from "./components/SizeToggle.js";
 import { ThemeToggle } from "./components/ThemeToggle.js";
+import { ToolbarPopover } from "./components/ToolbarPopover.js";
+import { useGridSize } from "./hooks/useGridSize.js";
 import "./App.css";
 
 type Menu = { kind: "template" | "room"; id: number; x: number; y: number };
+
+/** Чип активного условия: подпись + индивидуальный сброс. */
+type Chip = { key: string; label: string; onRemove: () => void };
+
+/** Короткая сводка фильтра по значениям для чипа. */
+function filterChipLabel(f: FilterState, scheduleName: ReadonlyMap<number, string>): string {
+    const parts: string[] = [];
+    if (f.scheduleId !== null) parts.push(`график «${scheduleName.get(f.scheduleId) ?? `#${f.scheduleId}`}»`);
+    if (f.guard !== "any") parts.push(`охрана: ${f.guard === "yes" ? "да" : "нет"}`);
+    if (f.antipass !== "any") parts.push(`antipass: ${f.antipass === "yes" ? "да" : "нет"}`);
+    const what = parts.length > 0 ? parts.join(", ") : "есть доступ";
+    return `${f.mode === "filter" ? "скрытие" : "подсветка"}: ${what}`;
+}
 
 export function App() {
     const [data, setData] = useState<MatrixResponse | null>(null);
@@ -78,6 +95,8 @@ export function App() {
     // Аббревиатуры графиков (имя → буква) из конфига; пусто = первая буква имени.
     const [scheduleAbbr, setScheduleAbbr] = useState<Record<string, string>>({});
     const [menu, setMenu] = useState<Menu | null>(null);
+    // Масштаб сетки (компактно/обычно/крупно), хранится в localStorage.
+    const gridSize = useGridSize();
     // Режим подбора шаблона: требование (roomId → отметки) + позиция редактора отметок.
     const [finder, setFinder] = useState(false);
     const [requirement, setRequirement] = useState<ReadonlyMap<number, CellSpec>>(new Map());
@@ -302,6 +321,27 @@ export function App() {
     );
     const templateById = useMemo(() => new Map(templates.map((t) => [t.id, t])), [templates]);
 
+    // Расшифровка легенды угла: буква ячейки → полное название графика (по реальным
+    // данным). Совпавшие буквы группируются — коллизии аббревиатур сразу видны.
+    const cellLegendTitle = useMemo(() => {
+        const byLetter = new Map<string, string[]>();
+        for (const s of schedules) {
+            const letter = abbrOf(s.name, scheduleAbbr);
+            const arr = byLetter.get(letter);
+            if (arr) arr.push(s.name);
+            else byLetter.set(letter, [s.name]);
+        }
+        const lines = [...byLetter.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0], "ru"))
+            .map(([letter, names]) => `${letter} — ${names.join(" / ")}`);
+        return [
+            "Буква в ячейке — график доступа:",
+            ...(lines.length > 0 ? lines : ["(данные ещё не загружены)"]),
+            "",
+            "Значки в углу ячейки: ● — охрана, ◆ — antipass",
+        ].join("\n");
+    }, [schedules, scheduleAbbr]);
+
     // Подписи чернового столбца «Требование»
     const draftCells = useMemo(() => {
         const m = new Map<number, string>();
@@ -386,6 +426,18 @@ export function App() {
         setSpecEditor(null);
     }, []);
 
+    // Стабильные обработчики ПКМ: инлайн-стрелки в пропсах меняли бы идентичность на
+    // каждый рендер App (а он рендерится на каждое наведение из-за hover) и пробивали
+    // бы memo у заголовков столбцов — перерисовывалась бы вся видимая шапка.
+    const openTemplateMenu = useCallback(
+        (id: number, x: number, y: number) => setMenu({ kind: "template", id, x, y }),
+        [],
+    );
+    const openRoomMenu = useCallback(
+        (id: number, x: number, y: number) => setMenu({ kind: "room", id, x, y }),
+        [],
+    );
+
     const menuItems: MenuItem[] = useMemo(() => {
         if (!menu) return [];
         if (menu.kind === "template") {
@@ -424,8 +476,62 @@ export function App() {
         ];
     }, [menu, pinnedSet, togglePin, toggleRoomHide, toggleTemplateHide, roomHidesByTemplate, templateHidesByRoom]);
 
-    const hasHidden = roomHidesByTemplate.size > 0 || templateHidesByRoom.size > 0;
     const isEmpty = !loading && !error && allRooms.length === 0 && templates.length === 0;
+
+    // Чипы активных условий: каждый механизм, скрывающий строки/столбцы, виден и
+    // сбрасывается индивидуально (раньше «что скрыто и чем» приходилось угадывать).
+    const chips: Chip[] = useMemo(() => {
+        const out: Chip[] = [];
+        if (templateQuery.trim())
+            out.push({ key: "tq", label: `поиск шаблона: «${templateQuery.trim()}»`, onRemove: () => setTemplateQuery("") });
+        if (roomQuery.trim())
+            out.push({ key: "rq", label: `поиск помещения: «${roomQuery.trim()}»`, onRemove: () => setRoomQuery("") });
+        if (filter.active)
+            out.push({
+                key: "f",
+                label: filterChipLabel(filter, scheduleNameById),
+                onRemove: () => setFilter((f) => ({ ...f, active: false })),
+            });
+        const critLabel = { noAccess: "без доступа", withAccess: "с доступом" } as const;
+        for (const [tid, flags] of roomHidesByTemplate) {
+            const name = templateById.get(tid)?.name ?? `#${tid}`;
+            for (const crit of ["noAccess", "withAccess"] as const) {
+                if (flags[crit])
+                    out.push({
+                        key: `rh:${tid}:${crit}`,
+                        label: `скрыты помещения ${critLabel[crit]}: «${name}»`,
+                        onRemove: () => toggleRoomHide(tid, crit),
+                    });
+            }
+        }
+        for (const [rid, flags] of templateHidesByRoom) {
+            const name = roomNameById.get(rid) ?? `#${rid}`;
+            for (const crit of ["noAccess", "withAccess"] as const) {
+                if (flags[crit])
+                    out.push({
+                        key: `th:${rid}:${crit}`,
+                        label: `скрыты шаблоны ${critLabel[crit]}: «${name}»`,
+                        onRemove: () => toggleTemplateHide(rid, crit),
+                    });
+            }
+        }
+        return out;
+    }, [templateQuery, roomQuery, filter, scheduleNameById, roomHidesByTemplate, templateHidesByRoom,
+        templateById, roomNameById, toggleRoomHide, toggleTemplateHide]);
+
+    const resetAllConditions = useCallback(() => {
+        setTemplateQuery("");
+        setRoomQuery("");
+        setFilter(EMPTY_FILTER);
+        clearHidden();
+    }, [clearHidden]);
+
+    // «Ничего не найдено»: условия отсеяли всё (в подборе пустые столбцы объясняет
+    // сама панель подбора, поэтому finder исключён).
+    const shownTemplates = gridScroll.length + gridPinned.length;
+    const noResults =
+        !!data && !error && chips.length > 0 &&
+        (visibleRooms.length === 0 || (shownTemplates === 0 && !finder));
 
     return (
         <div className="app">
@@ -464,18 +570,54 @@ export function App() {
                         setRoomSortDir(dir);
                     }}
                 />
+                <ToolbarPopover
+                    label="Фильтр"
+                    title="Фильтр/подсветка по значениям ячеек (график, охрана, antipass)"
+                    active={filter.active}
+                >
+                    <FilterPanel
+                        filter={filter}
+                        schedules={schedules}
+                        matched={matches ? { templates: matches.templateIds.size, rooms: matches.roomIds.size } : null}
+                        onChange={setFilter}
+                    />
+                </ToolbarPopover>
+
+                {data && allRooms.length > 0 && (
+                    <ToolbarPopover label="Дерево" title="Свернуть/развернуть дерево помещений">
+                        <div className="tree-controls">
+                            <button onClick={() => collapseToLevel(1)} title="Оставить только верхний уровень">
+                                Свернуть всё
+                            </button>
+                            {maxTreeDepth > 1 && (
+                                <div className="tree-levels">
+                                    {Array.from({ length: maxTreeDepth - 1 }, (_, i) => i + 2).map((lvl) => (
+                                        <button
+                                            key={lvl}
+                                            onClick={() => collapseToLevel(lvl)}
+                                            title={`Показать дерево до ${lvl} уровней`}
+                                        >
+                                            до ур. {lvl}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <button onClick={expandAll} title="Развернуть все узлы">
+                                Развернуть всё
+                            </button>
+                        </div>
+                    </ToolbarPopover>
+                )}
+
                 <div className="pin-controls">
                     {importantIds.length > 0 && (
-                        <button
-                            onClick={pinImportant}
-                            title="Закрепить слева все важные шаблоны из конфига"
-                        >
-                            📌 Закрепить важные ({importantIds.length})
+                        <button onClick={pinImportant} title="Закрепить слева все важные шаблоны из конфига">
+                            📌 Важные ({importantIds.length})
                         </button>
                     )}
                     {pinnedTemplateIds.length > 0 && (
                         <button onClick={unpinAll} title="Открепить все закреплённые шаблоны">
-                            Открепить все ({pinnedTemplateIds.length})
+                            Открепить ({pinnedTemplateIds.length})
                         </button>
                     )}
                     <button
@@ -486,11 +628,66 @@ export function App() {
                         }}
                         title="Подбор шаблона по нужным отметкам в выбранных помещениях"
                     >
-                        {finder ? "✕ Подбор" : "🔍 Подбор шаблона"}
+                        🔍 Подбор
                     </button>
+                </div>
+
+                <div className="toolbar-right">
+                    {data && (
+                        <span className="app-counts" title="Показано / всего">
+                            шаблонов {shownTemplates}/{templates.length} · помещений{" "}
+                            {visibleRooms.length}/{allRooms.length}
+                        </span>
+                    )}
+                    <SizeToggle mode={gridSize.mode} onCycle={gridSize.cycle} />
                     <ThemeToggle />
                 </div>
             </div>
+
+            {chips.length > 0 && (
+                <div className="app-conditions">
+                    <span className="conditions-label">Условия:</span>
+                    {chips.map((c) => (
+                        <span key={c.key} className="chip" title={c.label}>
+                            <span className="chip-text">{c.label}</span>
+                            <button
+                                className="chip-x"
+                                onClick={c.onRemove}
+                                title="Убрать это условие"
+                                aria-label={`Убрать условие: ${c.label}`}
+                            >
+                                ×
+                            </button>
+                        </span>
+                    ))}
+                    {(roomHidesByTemplate.size >= 2 || templateHidesByRoom.size >= 2) && (
+                        <span className="combine-toggle" title="Как комбинировать несколько скрытий">
+                            совмещать:
+                            <button
+                                className={hideCombine === "all" ? "on" : ""}
+                                onClick={() => setHideCombine("all")}
+                                title="Видно то, что прошло ВСЕ скрытия (пересечение)"
+                            >
+                                ∩ во всех
+                            </button>
+                            <button
+                                className={hideCombine === "any" ? "on" : ""}
+                                onClick={() => setHideCombine("any")}
+                                title="Видно то, что прошло хотя бы одно скрытие (объединение)"
+                            >
+                                ∪ в любом
+                            </button>
+                        </span>
+                    )}
+                    <button
+                        className="chip-clear"
+                        onClick={resetAllConditions}
+                        title="Сбросить поиск, фильтр и все скрытия"
+                    >
+                        Сбросить всё
+                    </button>
+                </div>
+            )}
 
             {finder && (
                 <div className="app-toolbar">
@@ -512,75 +709,24 @@ export function App() {
                 </div>
             )}
 
-            <div className="app-toolbar">
-                <FilterPanel
-                    filter={filter}
-                    schedules={schedules}
-                    matched={matches ? { templates: matches.templateIds.size, rooms: matches.roomIds.size } : null}
-                    onChange={setFilter}
-                />
-                <div className="toolbar-right">
-                    {data && allRooms.length > 0 && (
-                        <div className="tree-controls">
-                            <span className="tree-controls-label">Дерево:</span>
-                            <button onClick={() => collapseToLevel(1)} title="Свернуть всё (только верхний уровень)">
-                                свернуть всё
-                            </button>
-                            {Array.from({ length: Math.max(0, maxTreeDepth - 1) }, (_, i) => i + 2).map((lvl) => (
-                                <button key={lvl} onClick={() => collapseToLevel(lvl)} title={`Показать дерево до ${lvl} уровней`}>
-                                    до ур. {lvl}
-                                </button>
-                            ))}
-                            <button onClick={expandAll} title="Развернуть всё">
-                                развернуть всё
-                            </button>
-                        </div>
-                    )}
-                    {(roomHidesByTemplate.size >= 2 || templateHidesByRoom.size >= 2) && (
-                        <span className="combine-toggle" title="Как комбинировать несколько скрытий">
-                            совмещать:
-                            <button
-                                className={hideCombine === "all" ? "on" : ""}
-                                onClick={() => setHideCombine("all")}
-                                title="Видно то, что прошло ВСЕ скрытия (пересечение)"
-                            >
-                                ∩ во всех
-                            </button>
-                            <button
-                                className={hideCombine === "any" ? "on" : ""}
-                                onClick={() => setHideCombine("any")}
-                                title="Видно то, что прошло хотя бы одно скрытие (объединение)"
-                            >
-                                ∪ в любом
-                            </button>
-                        </span>
-                    )}
-                    {hasHidden && (
-                        <button
-                            className="show-hidden"
-                            onClick={clearHidden}
-                            title="Показать разом всё, что было скрыто через контекстное меню"
-                        >
-                            Показать всё скрытое
-                        </button>
-                    )}
-                    {data && (
-                        <span className="app-counts">
-                            показано: шаблонов {gridScroll.length + gridPinned.length} / {templates.length},
-                            помещений {visibleRooms.length} / {allRooms.length}
-                        </span>
-                    )}
-                </div>
-            </div>
-
             <div className="app-grid">
                 {error && <div className="app-msg error">Ошибка загрузки: {error}</div>}
+                {loading && !data && !error && <div className="app-msg">Загрузка данных…</div>}
                 {isEmpty && !refresh.busy && (
                     <div className="app-msg">
                         Кэш пуст. Нажмите «Обновить всё», чтобы загрузить данные из PERCo.
                     </div>
                 )}
-                {!error && data && (allRooms.length > 0 || templates.length > 0) && (
+                {noResults && (
+                    <div className="app-msg">
+                        Ничего не найдено: активные условия (поиск / фильтр / скрытия) отсеяли все
+                        строки или столбцы.{" "}
+                        <button className="chip-clear" onClick={resetAllConditions}>
+                            Сбросить всё
+                        </button>
+                    </div>
+                )}
+                {!error && data && !noResults && (allRooms.length > 0 || templates.length > 0) && (
                     <MatrixGrid
                         rooms={visibleRooms}
                         templates={gridScroll}
@@ -593,12 +739,14 @@ export function App() {
                         markedRooms={templateHidesByRoom}
                         onToggle={toggle}
                         onHover={setHover}
-                        onTemplateContext={(id, x, y) => setMenu({ kind: "template", id, x, y })}
-                        onRoomContext={(id, x, y) => setMenu({ kind: "room", id, x, y })}
+                        onTemplateContext={openTemplateMenu}
+                        onRoomContext={openRoomMenu}
                         draftActive={finder}
                         draftCells={draftCells}
                         onDraftCell={handleDraftCell}
                         scheduleAbbr={scheduleAbbr}
+                        sizes={gridSize.sizes}
+                        legendTitle={cellLegendTitle}
                     />
                 )}
             </div>

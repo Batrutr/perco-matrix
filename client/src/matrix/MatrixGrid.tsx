@@ -6,11 +6,12 @@
 // При наведении меняется только isHot затронутых столбцов, поэтому перерисовываются
 // лишь они, а не вся видимая сетка. Подсветка СТРОКИ — чистым CSS (.mx-row.hot),
 // без участия пропа ячейки, поэтому движение вдоль столбца не трогает ячейки.
-import { memo, useCallback, useRef, useState, type CSSProperties } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { MatrixCell, Template } from "@perco/shared";
 import { cellKey, cellText, describeCell, type RoomRow } from "./model.js";
 import type { HideFlags } from "./hide.js";
+import { GRID_SIZES, type GridSizes } from "../hooks/useGridSize.js";
 import "./matrix.css";
 
 /** Значки активного скрытия: ● — скрыто «с доступом», ○ — скрыто «без доступа». */
@@ -31,11 +32,6 @@ function hideMarks(f: HideFlags, noun: string) {
     );
 }
 
-export const ROW_H = 28;
-export const HEADER_H = 144;
-export const LABEL_W = 300;
-export const COL_W = 50;
-
 export interface HoverInfo {
     template: Template;
     room: RoomRow;
@@ -47,6 +43,8 @@ export interface HoverInfo {
 interface HeaderCellProps {
     template: Template;
     left: number;
+    colW: number;
+    headerH: number;
     pinned: boolean;
     isHot: boolean;
     isDim: boolean;
@@ -57,6 +55,8 @@ interface HeaderCellProps {
 const HeaderCell = memo(function HeaderCell({
     template: t,
     left,
+    colW,
+    headerH,
     pinned,
     isHot,
     isDim,
@@ -64,8 +64,8 @@ const HeaderCell = memo(function HeaderCell({
     onContext,
 }: HeaderCellProps) {
     const style: CSSProperties = pinned
-        ? { position: "sticky", left, width: COL_W, height: HEADER_H, zIndex: 5 }
-        : { position: "absolute", left, width: COL_W, height: HEADER_H };
+        ? { position: "sticky", left, width: colW, height: headerH, zIndex: 5 }
+        : { position: "absolute", left, width: colW, height: headerH };
     return (
         <div
             className={`mx-th${pinned ? " pinned" : ""}${isHot ? " hot" : ""}${isDim ? " dim" : ""}${mark ? " marked" : ""}`}
@@ -100,6 +100,8 @@ interface BodyCellProps {
     room: RoomRow;
     cell: MatrixCell | undefined;
     left: number;
+    colW: number;
+    rowH: number;
     pinned: boolean;
     isHot: boolean; // подсветка по столбцу (строка — через CSS .mx-row.hot)
     abbr: Record<string, string>; // таблица аббревиатур графиков (из конфига)
@@ -111,14 +113,16 @@ const BodyCell = memo(function BodyCell({
     room,
     cell,
     left,
+    colW,
+    rowH,
     pinned,
     isHot,
     abbr,
     onEnter,
 }: BodyCellProps) {
     const style: CSSProperties = pinned
-        ? { position: "sticky", left, width: COL_W, height: ROW_H, zIndex: 1 }
-        : { position: "absolute", left, width: COL_W, height: ROW_H };
+        ? { position: "sticky", left, width: colW, height: rowH, zIndex: 1 }
+        : { position: "absolute", left, width: colW, height: rowH };
     return (
         <div
             className={`mx-cell${pinned ? " pinned" : ""}${cell ? " filled" : ""}${isHot ? " hot" : ""}`}
@@ -165,6 +169,10 @@ interface Props {
     onDraftCell?: (roomId: number, x: number, y: number) => void;
     /** Таблица аббревиатур графиков (имя → буква) из конфига сервера */
     scheduleAbbr?: Record<string, string>;
+    /** Геометрия сетки (пресет масштаба); по умолчанию «обычно» */
+    sizes?: GridSizes;
+    /** Подсказка легенды угла: расшифровка букв графиков и значков */
+    legendTitle?: string;
 }
 
 export function MatrixGrid({
@@ -185,7 +193,10 @@ export function MatrixGrid({
     draftCells,
     onDraftCell,
     scheduleAbbr = {},
+    sizes = GRID_SIZES.normal,
+    legendTitle,
 }: Props) {
+    const { rowH, headerH, labelW, colW } = sizes;
     const parentRef = useRef<HTMLDivElement>(null);
     // Наведение храним по стабильным id (roomId/templateId), а не по индексу строки —
     // иначе подсветка «съезжает» при смене состава строк (сворачивание/фильтр/скрытие).
@@ -194,22 +205,27 @@ export function MatrixGrid({
     const rowV = useVirtualizer({
         count: rooms.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => ROW_H,
+        estimateSize: () => rowH,
         overscan: 10,
     });
     const colV = useVirtualizer({
         horizontal: true,
         count: templates.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => COL_W,
+        estimateSize: () => colW,
         overscan: 4,
     });
+    // Виртуализатор кэширует размеры — при смене пресета пересчитываем разметку.
+    useEffect(() => {
+        rowV.measure();
+        colV.measure();
+    }, [rowH, colW, rowV, colV]);
 
     const rowItems = rowV.getVirtualItems();
     const colItems = colV.getVirtualItems();
-    const draftW = draftActive ? COL_W : 0;
-    const pinnedW = pinnedTemplates.length * COL_W;
-    const baseLeft = LABEL_W + draftW; // сдвиг столбцов на черновой столбец
+    const draftW = draftActive ? colW : 0;
+    const pinnedW = pinnedTemplates.length * colW;
+    const baseLeft = labelW + draftW; // сдвиг столбцов на черновой столбец
     const contentW = baseLeft + pinnedW + colV.getTotalSize();
 
     // Стабильные колбэки — чтобы memo-пропсы ячеек не менялись на каждый рендер.
@@ -236,6 +252,8 @@ export function MatrixGrid({
             key={pinned ? `p${t.id}` : t.id}
             template={t}
             left={left}
+            colW={colW}
+            headerH={headerH}
             pinned={pinned}
             isHot={hotTemplateId === t.id}
             isDim={!!(highlightedTemplates && !highlightedTemplates.has(t.id))}
@@ -251,6 +269,8 @@ export function MatrixGrid({
             room={r}
             cell={cellIndex.get(cellKey(t.id, r.roomId))}
             left={left}
+            colW={colW}
+            rowH={rowH}
             pinned={pinned}
             isHot={hotTemplateId === t.id}
             abbr={scheduleAbbr}
@@ -261,10 +281,22 @@ export function MatrixGrid({
     return (
         <div ref={parentRef} className="mx-scroll" onMouseLeave={handleLeave}>
             {/* Шапка */}
-            <div className="mx-header" style={{ width: contentW, height: HEADER_H }}>
-                <div className="mx-corner" style={{ width: LABEL_W, height: HEADER_H }}>
+            <div className="mx-header" style={{ width: contentW, height: headerH }}>
+                <div className="mx-corner" style={{ width: labelW, height: headerH }}>
                     <span className="mx-corner-title">
                         Помещения <span className="mx-corner-sep">\</span> Шаблоны
+                    </span>
+                    {/* Легенда содержимого ячейки: буква графика + значки охраны/antipass.
+                        Полная расшифровка букв (по реальным графикам) — в подсказке. */}
+                    <span className="mx-corner-badges" title={legendTitle}>
+                        <span className="mx-corner-badges-hint">буква — график</span> ·{" "}
+                        <span className="mx-corner-badges-item">
+                            <i className="mx-badge g" /> охрана
+                        </span>{" "}
+                        ·{" "}
+                        <span className="mx-corner-badges-item">
+                            <i className="mx-badge a" /> antipass
+                        </span>
                     </span>
                     <span className="mx-corner-legend">
                         <span className="c-rooms">помещений</span>
@@ -274,13 +306,13 @@ export function MatrixGrid({
                 {draftActive && (
                     <div
                         className="mx-th draft"
-                        style={{ position: "sticky", left: LABEL_W, width: COL_W, height: HEADER_H, zIndex: 5 }}
+                        style={{ position: "sticky", left: labelW, width: colW, height: headerH, zIndex: 5 }}
                         title="Требование: задайте отметки по выбранным помещениям"
                     >
                         <span className="mx-th-text">Требование</span>
                     </div>
                 )}
-                {pinnedTemplates.map((t, i) => renderHeader(t, baseLeft + i * COL_W, true))}
+                {pinnedTemplates.map((t, i) => renderHeader(t, baseLeft + i * colW, true))}
                 {colItems.map((col) => renderHeader(templates[col.index]!, baseLeft + pinnedW + col.start, false))}
             </div>
 
@@ -295,11 +327,11 @@ export function MatrixGrid({
                         <div
                             key={row.key}
                             className={`mx-row${rowHot ? " hot" : ""}${rowDim ? " dim" : ""}`}
-                            style={{ top: row.start, height: ROW_H, width: contentW }}
+                            style={{ top: row.start, height: rowH, width: contentW }}
                         >
                             <div
                                 className={`mx-label${r.hasChildren ? " clickable" : " leaf"}${rowMark ? " marked" : ""}`}
-                                style={{ width: LABEL_W, height: ROW_H }}
+                                style={{ width: labelW, height: rowH }}
                                 onClick={() => r.hasChildren && onToggle(r.id)}
                                 onContextMenu={
                                     onRoomContext
@@ -330,7 +362,7 @@ export function MatrixGrid({
                             {draftActive && (
                                 <div
                                     className={`mx-cell draft${draftCells?.has(r.roomId) ? " set" : ""}`}
-                                    style={{ position: "sticky", left: LABEL_W, width: COL_W, height: ROW_H, zIndex: 2 }}
+                                    style={{ position: "sticky", left: labelW, width: colW, height: rowH, zIndex: 2 }}
                                     title="Клик — задать/изменить отметки требования для этого помещения"
                                     onClick={(e) => onDraftCell?.(r.roomId, e.clientX, e.clientY)}
                                 >
@@ -341,7 +373,7 @@ export function MatrixGrid({
                                     )}
                                 </div>
                             )}
-                            {pinnedTemplates.map((t, i) => renderCell(t, r, baseLeft + i * COL_W, true))}
+                            {pinnedTemplates.map((t, i) => renderCell(t, r, baseLeft + i * colW, true))}
                             {colItems.map((col) => renderCell(templates[col.index]!, r, baseLeft + pinnedW + col.start, false))}
                         </div>
                     );

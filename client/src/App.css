@@ -1,10 +1,6 @@
-.app {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-
-    /* Единая палитра контролов панелей (переопределяется в тёмной теме). */
+/* Единая палитра (на :root, а не .app: экран входа рендерится вне .app).
+   Контраст текста на светлом фоне — не ниже AA (4.5:1) при 12px. */
+:root {
     --accent: #2563c0;
     --accent-strong: #1d4ea0;
     --ctl-border: #cdd5e3;
@@ -13,9 +9,13 @@
     --ctl-on: #dde6ff;
     --muted: #6b7280;
     --bar-bg: #fafbfe;
+    /* Смысловые цвета текста: ошибка / успех / предупреждение */
+    --danger: #c0303c;
+    --ok: #2e7d32;
+    --warn: #b45309;
 }
 
-[data-theme="dark"] .app {
+:root[data-theme="dark"] {
     --accent: #7aa2f7;
     --accent-strong: #93b4ff;
     --ctl-border: #ffffff2e;
@@ -24,11 +24,32 @@
     --ctl-on: #2d3b66;
     --muted: #9aa3b2;
     --bar-bg: #1b1e26;
+    --danger: #ef6a6a;
+    --ok: #81c784;
+    --warn: #ffb74d;
+}
+
+.app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    /* auto, а не hidden: если панели всё же не помещаются (узкий экран, крупный
+       шрифт), содержимое прокручивается, а не обрезается безвозвратно. */
+    overflow: auto;
+}
+
+/* Видимый фокус для клавиатурной навигации — на всех интерактивных элементах. */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
 }
 
 /* --- Единый вид контролов в панелях (поиск/сортировка/фильтр/дерево) --- */
 .app-toolbar input[type="search"],
-.app-toolbar select {
+.app-toolbar select,
+.spec-editor select {
     font: inherit;
     font-size: 12px;
     padding: 4px 8px;
@@ -40,7 +61,8 @@
 }
 
 .app-toolbar input[type="search"]:focus,
-.app-toolbar select:focus {
+.app-toolbar select:focus,
+.spec-editor select:focus {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
@@ -48,9 +70,10 @@
 
 .pin-controls button,
 .theme-toggle,
+.size-toggle,
+.tb-pop-btn,
 .tree-controls button,
-.combine-toggle button,
-.show-hidden {
+.combine-toggle button {
     font: inherit;
     font-size: 12px;
     padding: 5px 10px;
@@ -64,11 +87,74 @@
 
 .pin-controls button:hover:not(:disabled),
 .theme-toggle:hover,
+.size-toggle:hover,
+.tb-pop-btn:hover,
 .tree-controls button:hover,
-.combine-toggle button:hover,
-.show-hidden:hover {
+.combine-toggle button:hover {
     border-color: var(--accent);
     background: var(--ctl-hover);
+}
+
+/* --- Кнопка тулбара с всплывающей панелью --- */
+.tb-pop {
+    display: inline-flex;
+}
+
+.tb-pop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.tb-pop-btn.on {
+    font-weight: 600;
+    border-color: var(--accent);
+    background: var(--ctl-on);
+}
+
+.tb-pop-btn.open {
+    border-color: var(--accent);
+}
+
+.tb-pop-caret {
+    font-size: 9px;
+    opacity: 0.65;
+}
+
+/* Панель — fixed (позицию считает ToolbarPopover): absolute обрезался бы
+   переполнением .app, а inline-раскладка снова отняла бы высоту у матрицы. */
+.tb-pop-panel {
+    position: fixed;
+    z-index: 900;
+    min-width: 230px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    background: var(--pop-bg, #fff);
+    border: 1px solid var(--ctl-border);
+    border-radius: 8px;
+    box-shadow: 0 6px 20px #00000026;
+    font-size: 12px;
+}
+
+[data-theme="dark"] .tb-pop-panel {
+    --pop-bg: #26262b;
+    box-shadow: 0 6px 20px #0000005c;
+}
+
+/* Строка «подпись — контрол» внутри поповера */
+.pop-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.pop-row select {
+    flex: 1;
+    min-width: 0;
 }
 
 .app-top {
@@ -77,7 +163,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    gap: 12px 16px;
+    /* Без переноса шапка требовала ~850px и обрезалась вместе с кнопкой «Обновить всё». */
+    flex-wrap: wrap;
     padding: 10px 18px;
     background: var(--top-bg, linear-gradient(180deg, #f8faff, #eef3fb));
     border-bottom: 1px solid var(--top-border, #dbe3f2);
@@ -127,20 +215,6 @@
     --brand-accent: #7aa2f7;
 }
 
-.app-meta {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    font-size: 12px;
-    color: #888;
-    flex-wrap: wrap;
-}
-
-.app-meta button {
-    font-size: 12px;
-    padding: 4px 10px;
-    cursor: pointer;
-}
 
 /* --- Панель обновления --- */
 .refresh-bar {
@@ -152,6 +226,7 @@
 
 .refresh-buttons {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
 }
 
@@ -196,38 +271,47 @@
 
 .refresh-status {
     font-size: 12px;
-    color: #888;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+/* Подсказка с полной разбивкой дат — намекаем пунктиром, что она есть */
+.refresh-status .times {
+    cursor: help;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
 }
 
 .refresh-status .busy {
-    color: #1565c0;
+    color: var(--accent);
 }
 
 .refresh-status .err {
-    color: crimson;
+    color: var(--danger);
 }
 
 /* --- Панель поиска/сортировки --- */
 .search-bar {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 16px;
+    gap: 8px;
     font-size: 12px;
     flex-wrap: wrap;
 }
 
-.search-field {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+.search-label {
+    color: var(--muted);
 }
 
-.search-field input[type="search"] {
-    width: 160px;
+/* Подписи полей убраны в placeholder/title: две пары «подпись + поле» стоили
+   ~185px ширины тулбара и переносили его на вторую строку. */
+.search-bar .search-input {
+    width: 140px;
 }
 
 .pin-controls {
     display: inline-flex;
+    flex-wrap: wrap;
     gap: 8px;
 }
 
@@ -259,12 +343,18 @@
 }
 
 .finder-count {
-    color: #888;
+    color: var(--muted);
 }
 
 .finder-hint {
-    color: #888;
+    color: var(--muted);
     max-width: 720px;
+}
+
+/* Расшифровка шифра отметок столбца «Требование» */
+.finder-legend {
+    color: var(--muted);
+    font-weight: 400;
 }
 
 .finder-results {
@@ -275,12 +365,12 @@
 }
 
 .finder-ok {
-    color: #2e7d32;
+    color: var(--ok);
     font-weight: 600;
 }
 
 .finder-warn {
-    color: #e65100;
+    color: var(--warn);
     font-weight: 600;
 }
 
@@ -295,12 +385,12 @@
 }
 
 .finder-tpl i {
-    color: #888;
+    color: var(--muted);
     font-style: normal;
 }
 
 .finder-uncovered {
-    color: crimson;
+    color: var(--danger);
 }
 
 /* --- Редактор отметок требования --- */
@@ -356,20 +446,19 @@
     border-color: #ffffff33;
 }
 
-/* --- Тулбар фильтра --- */
+/* --- Тулбар --- */
 .app-toolbar {
     flex: none;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    gap: 8px 12px;
     padding: 8px 18px;
     background: var(--bar-bg);
     border-bottom: 1px solid var(--ctl-border);
     flex-wrap: wrap;
 }
 
-/* Правая группа второго тулбара (дерево / совмещение / скрытое / счётчики). */
+/* Правая группа тулбара (совмещение / скрытое / счётчики). */
 .toolbar-right {
     display: flex;
     align-items: center;
@@ -378,34 +467,29 @@
     flex-wrap: wrap;
 }
 
+/* Фильтр живёт в поповере — раскладка вертикальная. */
 .filter-panel {
     display: flex;
-    align-items: center;
-    gap: 14px;
+    flex-direction: column;
+    gap: 10px;
     font-size: 12px;
 }
 
 .filter-active {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     font-weight: 600;
     cursor: pointer;
 }
 
 .filter-controls {
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     border: none;
     margin: 0;
     padding: 0;
-}
-
-.filter-controls label {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
 }
 
 .filter-controls select {
@@ -426,16 +510,96 @@
     white-space: nowrap;
 }
 
-/* --- Быстрое сворачивание дерева --- */
-.tree-controls {
+/* --- Строка активных условий (чипы с индивидуальным сбросом) --- */
+.app-conditions {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px 8px;
+    flex-wrap: wrap;
+    padding: 5px 18px;
+    font-size: 12px;
+    background: var(--bar-bg);
+    border-bottom: 1px solid var(--ctl-border);
+}
+
+.conditions-label {
+    color: var(--muted);
+}
+
+.chip {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+    max-width: 420px;
+    padding: 2px 4px 2px 10px;
+    border: 1px solid var(--ctl-border);
+    border-radius: 999px;
+    background: var(--ctl-bg);
+}
+
+.chip-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chip-x {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 13px;
+    line-height: 1;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.chip-x:hover {
+    color: var(--danger);
+    background: var(--ctl-hover);
+}
+
+.chip-clear {
+    font: inherit;
+    padding: 2px 10px;
+    cursor: pointer;
+    border: 1px solid var(--ctl-border);
+    border-radius: 999px;
+    background: none;
+    color: var(--muted);
+}
+
+.chip-clear:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+/* --- Быстрое сворачивание дерева (в поповере) --- */
+.tree-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
     font-size: 12px;
 }
 
-.tree-controls-label {
-    color: var(--muted);
+/* Кнопок уровней столько, какова глубина дерева, — переносим их, а не тянем тулбар. */
+.tree-levels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: 260px;
+}
+
+.tree-levels button {
+    flex: none;
 }
 
 .combine-toggle {
@@ -494,18 +658,20 @@
 
 .app-grid {
     flex: 1;
-    min-height: 0;
+    /* Панели — flex: none, поэтому без этого пола сетку сжимало бы до нуля:
+       при нехватке места теперь прокручивается .app, а матрица остаётся рабочей. */
+    min-height: 260px;
     padding: 8px;
 }
 
 .app-msg {
     padding: 24px;
-    color: #888;
+    color: var(--muted);
     max-width: 640px;
 }
 
 .app-msg.error {
-    color: crimson;
+    color: var(--danger);
 }
 
 .app-info {
@@ -517,7 +683,7 @@
 }
 
 .app-info .muted {
-    color: #999;
+    color: var(--muted);
 }
 
 /* --- Экран входа --- */
@@ -547,7 +713,7 @@
 .auth-form p {
     margin: 0;
     font-size: 13px;
-    color: #888;
+    color: var(--muted);
 }
 
 .auth-form input {
@@ -562,6 +728,6 @@
 }
 
 .auth-error {
-    color: crimson;
+    color: var(--danger);
     font-size: 13px;
 }

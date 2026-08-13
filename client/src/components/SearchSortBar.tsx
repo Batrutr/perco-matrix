@@ -1,6 +1,8 @@
-// Поиск по шаблонам/помещениям и сортировка шаблонов/помещений.
+// Поиск по шаблонам/помещениям (всегда на виду) и сортировка (в поповере —
+// используется редко, постоянную высоту тулбара занимать не должна).
 import type { SortDir, SortKey } from "../matrix/search.js";
 import type { RoomSortKey } from "../matrix/model.js";
+import { ToolbarPopover } from "./ToolbarPopover.js";
 
 interface Props {
     templateQuery: string;
@@ -30,6 +32,10 @@ const ROOM_SORT_OPTIONS: Array<{ value: string; label: string; key: RoomSortKey;
     { value: "name:desc", label: "Имя (Я→А)", key: "name", dir: "desc" },
 ];
 
+/** Значения по умолчанию — при них триггер сортировки не подсвечивается. */
+const DEFAULT_SORT = "name:asc";
+const DEFAULT_ROOM_SORT = "tree:asc";
+
 export function SearchSortBar({
     templateQuery,
     roomQuery,
@@ -42,61 +48,73 @@ export function SearchSortBar({
     onSort,
     onRoomSort,
 }: Props) {
+    const sortValue = `${sortKey}:${sortDir}`;
+    const roomSortValue = `${roomSortKey}:${roomSortDir}`;
+    const sortChanged = sortValue !== DEFAULT_SORT || roomSortValue !== DEFAULT_ROOM_SORT;
+
     return (
         <div className="search-bar">
-            <label className="search-field">
-                Поиск шаблона:
-                <input
-                    type="search"
-                    value={templateQuery}
-                    placeholder="имя шаблона"
-                    onChange={(e) => onTemplateQuery(e.target.value)}
-                />
-            </label>
+            <span className="search-label">Поиск:</span>
 
-            <label className="search-field">
-                Поиск помещения:
-                <input
-                    type="search"
-                    value={roomQuery}
-                    placeholder="имя помещения"
-                    onChange={(e) => onRoomQuery(e.target.value)}
-                />
-            </label>
+            <input
+                type="search"
+                className="search-input"
+                value={templateQuery}
+                placeholder="шаблон…"
+                title="Поиск по имени шаблона"
+                aria-label="Поиск по имени шаблона"
+                onChange={(e) => onTemplateQuery(e.target.value)}
+            />
 
-            <label className="search-field">
-                Сортировка шаблонов:
-                <select
-                    value={`${sortKey}:${sortDir}`}
-                    onChange={(e) => {
-                        const opt = SORT_OPTIONS.find((o) => o.value === e.target.value);
-                        if (opt) onSort(opt.key, opt.dir);
-                    }}
-                >
-                    {SORT_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                            {o.label}
-                        </option>
-                    ))}
-                </select>
-            </label>
+            <input
+                type="search"
+                className="search-input"
+                value={roomQuery}
+                placeholder="помещение…"
+                title="Поиск по имени помещения"
+                aria-label="Поиск по имени помещения"
+                onChange={(e) => onRoomQuery(e.target.value)}
+            />
 
-            <label className="search-field">
-                Сортировка помещений:
-                <select
-                    value={`${roomSortKey}:${roomSortDir}`}
-                    onChange={(e) => {
-                        const opt = ROOM_SORT_OPTIONS.find((o) => o.value === e.target.value);
-                        if (opt) onRoomSort(opt.key, opt.dir);
-                    }}
-                >
-                    {ROOM_SORT_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                            {o.label}
-                        </option>
-                    ))}
-                </select>
-            </label>
+            <ToolbarPopover
+                label="Сортировка"
+                title="Порядок столбцов-шаблонов и строк-помещений"
+                active={sortChanged}
+            >
+                <label className="pop-row">
+                    <span>Шаблоны</span>
+                    <select
+                        value={sortValue}
+                        onChange={(e) => {
+                            const opt = SORT_OPTIONS.find((o) => o.value === e.target.value);
+                            if (opt) onSort(opt.key, opt.dir);
+                        }}
+                    >
+                        {SORT_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                                {o.label}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+
+                <label className="pop-row">
+                    <span>Помещения</span>
+                    <select
+                        value={roomSortValue}
+                        onChange={(e) => {
+                            const opt = ROOM_SORT_OPTIONS.find((o) => o.value === e.target.value);
+                            if (opt) onRoomSort(opt.key, opt.dir);
+                        }}
+                    >
+                        {ROOM_SORT_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                                {o.label}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+            </ToolbarPopover>
         </div>
     );
 }
