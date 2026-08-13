@@ -9,7 +9,9 @@ export default defineConfig({
         port: 5173,
         proxy: {
             "/api": {
-                target: "http://localhost:3000",
+                // 127.0.0.1, а не localhost: Node ≥17 резолвит localhost в ::1 первым,
+                // а Fastify слушает 0.0.0.0 (только IPv4) — прокси падал бы по таймауту.
+                target: "http://127.0.0.1:3000",
                 changeOrigin: true,
             },
         },

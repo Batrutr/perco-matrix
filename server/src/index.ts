@@ -1,4 +1,5 @@
 // Точка входа: загрузка конфига, БД, клиент PERCo, сборка приложения и запуск.
+import "./env.js"; // подхват .env — до чтения конфига
 import { loadConfig } from "./config.js";
 import { openDb } from "./db.js";
 import { PercoClient } from "./perco/client.js";
